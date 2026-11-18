@@ -1,0 +1,72 @@
+@import "tailwindcss" source(none);
+@source "./painel.js";
+
+@theme {
+  --font-sans: "Nunito", system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--secondary-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-sky: var(--brand-sky);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-amber: var(--amber);
+  --color-success: var(--success);
+}
+
+:root {
+  --background: oklch(98.5% .005 250);
+  --foreground: oklch(12.9% .042 264.695);
+  --card: oklch(100% 0 0);
+  --border: oklch(92.9% .013 255.508);
+  --input: oklch(92.9% .013 255.508);
+  --ring: oklch(70.4% .04 256.788);
+  --muted: oklch(96.8% .007 247.896);
+  --muted-foreground: oklch(55.4% .046 257.417);
+  --secondary: oklch(96.8% .007 247.896);
+  --secondary-foreground: oklch(20.8% .042 265.755);
+  --accent: oklch(96.8% .007 247.896);
+  --primary: oklch(20.8% .042 265.755);
+  --primary-foreground: oklch(98.4% .003 247.858);
+  --brand: oklch(55% .19 258);
+  --brand-deep: oklch(38% .17 262);
+  --brand-sky: oklch(80% .09 230);
+  --violet: oklch(45% .15 300);
+  --violet-soft: oklch(95% .03 300);
+  --amber: oklch(78% .16 70);
+  --success: oklch(65% .15 155);
+  --chart-1: oklch(55% .19 258);
+  --chart-2: oklch(78% .16 70);
+  --chart-3: oklch(45% .15 300);
+  --chart-4: oklch(80% .09 230);
+  --chart-5: oklch(60% .2 25);
+  --radius: .75rem;
+  --gradient-header: linear-gradient(100deg, oklch(38% .17 262), oklch(55% .19 258) 60%, oklch(80% .09 230));
+  --shadow-card: 0 4px 14px -6px oklch(38% .17 262 / .18);
+}
+
+@layer base {
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+}
+
+@layer components {
+  .bg-header { background-image: var(--gradient-header); }
+  .card-canvas {
+    border-radius: calc(var(--radius) + 4px); border: 1px solid var(--border); background-color: var(--card);
+    padding: calc(var(--spacing) * 5); box-shadow: var(--shadow-card); border-left-width: 4px;
+  }
+  .eyebrow { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: 700; letter-spacing: .25em; text-transform: uppercase; }
+  .seletor-dia { background: transparent; color: var(--muted-foreground); font-size: .75rem; border: 0; cursor: pointer; padding: 0 2px; font-family: inherit; }
+  .seletor-dia:focus { outline: 1px solid var(--ring); border-radius: 4px; }
+}
