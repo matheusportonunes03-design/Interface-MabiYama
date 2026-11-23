@@ -59,6 +59,18 @@ def previsao_longa(sub: pd.DataFrame, val: pd.DataFrame) -> pd.DataFrame:
     return lg
 
 
+def lista_dia(g, maq):
+    """Candidatas de um dia (prob. > 0), da maior para a menor probabilidade, com modelo e idade da máquina."""
+    g = g[g["prob"] > 0].sort_values("prob", ascending=False)
+    return pd.DataFrame({
+        "machine": g["id_maquina"].values,
+        "comp": [nome_peca(p) for p in g["peca"]],
+        "model": [maq.loc[m, "modelo"] if m in maq.index else "–" for m in g["id_maquina"]],
+        "age": [None if m not in maq.index or pd.isna(maq.loc[m, "idade"]) else int(maq.loc[m, "idade"]) for m in g["id_maquina"]],
+        "prob": [int(round(p * 100)) for p in g["prob"]],
+    })
+
+
 def dados_modelagem(pasta, sub=None):
     val = ler(pasta, "validacao.csv")
     maq = ler(pasta, "maquinas_resumo.csv").set_index("id_maquina")
@@ -67,20 +79,12 @@ def dados_modelagem(pasta, sub=None):
 
     dias = []
     for dia, g in lg.groupby("dia"):
-        top = g.nlargest(10, "prob")
         dias.append({
             "dia": f"{dia:%Y-%m-%d}",
             "execCurto": f"{dia:%d/%m}",
             "fimCurto": f"{dia + pd.Timedelta(days=1):%d/%m}",
             "fimLongo": f"{dia + pd.Timedelta(days=1):%d/%m/%Y}",
-            "altoRisco": int((g["prob"] > LIMIAR).sum()),
-            "top": [{
-                "machine": r.id_maquina, "comp": nome_peca(r.peca),
-                "model": maq.loc[r.id_maquina, "modelo"] if r.id_maquina in maq.index else "–",
-                "age": (None if r.id_maquina not in maq.index or pd.isna(maq.loc[r.id_maquina, "idade"])
-                        else int(maq.loc[r.id_maquina, "idade"])),
-                "prob": int(round(r.prob * 100)),
-            } for r in top.itertuples()],
+            "lista": lista_dia(g, maq).to_dict("records"),
         })
 
     # métricas da validação temporal
@@ -153,6 +157,16 @@ def dados_exploratoria(pasta):
         "qualidade": [{"t": a, "rows": br(b), "miss": br(c, 1), "dup": br(d, 1)}
                       for a, b, c, d in zip(q["tabela"], q["linhas"], q["nulos_pct"], q["duplic_pct"])],
     }
+
+
+def graficos_eda(pasta):
+    """Galeria da análise exploratória (Etapa 3): imagens em WebP embutidas como data URI + texto do insight."""
+    import base64, json
+    base = Path(pasta) / "eda"
+    cat = json.loads((base / "graficos.json").read_text(encoding="utf-8"))
+    for g in cat:
+        g["src"] = "data:image/webp;base64," + base64.b64encode((base / g["arquivo"]).read_bytes()).decode()
+    return sorted(cat, key=lambda g: g["n"])
 
 
 def montar(pasta, sub=None):

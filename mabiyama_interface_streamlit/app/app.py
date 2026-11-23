@@ -24,7 +24,7 @@ DADOS = RAIZ / "dados"
 FRONT = RAIZ / "frontend"
 
 st.set_page_config(page_title="MaBiYama · Painel da Frota", page_icon="⚙️", layout="wide",
-                   initial_sidebar_state="collapsed")
+                   initial_sidebar_state="expanded" if "usuario" in st.session_state else "collapsed")
 
 
 # ------------------------------------------------------------------ recursos estáticos
@@ -81,8 +81,36 @@ def css_base():
 html, body, .stApp, .stApp * {{ font-family: "Nunito", system-ui, sans-serif; }}
 .stApp [data-testid="stIconMaterial"], .stApp .material-symbols-rounded {{ font-family: "Material Symbols Rounded" !important; }}
 .stApp {{ background: var(--background); color: var(--foreground); }}
-header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-#MainMenu, footer, .stDeployButton, [data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
+[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+#MainMenu, footer, .stDeployButton {{ display: none !important; }}
+header[data-testid="stHeader"] {{ background: transparent !important; height: 0 !important; min-height: 0 !important; }}
+[data-testid="stExpandSidebarButton"] {{ position: fixed; top: .75rem; left: .75rem; z-index: 999990; background: var(--card) !important;
+  border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 3px rgb(0 0 0 / .12); color: var(--brand-deep); }}
+
+/* barra lateral */
+[data-testid="stSidebar"] {{ background: var(--card) !important; border-right: 1px solid var(--border); }}
+[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {{ padding: 0 1.25rem 2rem; }}
+[data-testid="stSidebarHeader"] {{ padding: .75rem 1rem 0; height: auto; }}
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{ gap: .75rem; }}
+[data-testid="stSidebar"] label p, [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {{ font-size: .8125rem !important; font-weight: 700; color: var(--foreground); }}
+.lb-marca {{ border-radius: 10px; background-image: var(--gradient-header); color: var(--primary-foreground); padding: .875rem 1rem; }}
+.lb-marca p {{ margin: 0; }}
+[data-testid="stSidebar"] p.lb-sec {{ font-size: .6875rem !important; line-height: 1rem; }}
+.lb-sec {{ margin: .75rem 0 -.25rem; padding-top: .875rem; border-top: 1px solid var(--border); font-size: .6875rem; font-weight: 800;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }}
+[data-testid="stSidebar"] .lb-sobre, [data-testid="stSidebar"] .lb-sobre * {{ font-size: .8125rem !important; }}
+.lb-marca .eyebrow {{ font-size: .625rem !important; letter-spacing: .2em; }}
+.lb-sobre {{ font-size: .8125rem; line-height: 1.5; color: var(--muted-foreground); }}
+.lb-sobre b {{ color: var(--foreground); font-weight: 700; }}
+[data-testid="stSidebar"] [data-baseweb="tag"] {{ background: var(--secondary) !important; color: var(--brand-deep) !important; }}
+[data-testid="stSidebar"] [data-baseweb="select"] > div {{ border-color: var(--input) !important; background: var(--card) !important; }}
+[data-testid="stSidebar"] [data-testid="stSlider"] [role="slider"] {{ background: var(--brand) !important; }}
+[data-testid="stSidebar"] .stDownloadButton button {{ width: 100%; background: var(--brand) !important; color: var(--primary-foreground) !important;
+  border: 0 !important; height: 2.25rem; }}
+[data-testid="stSidebar"] .stDownloadButton button:hover {{ background: var(--brand-deep) !important; }}
+[data-testid="stSidebar"] .stButton button {{ width: 100%; height: 2.25rem; background: var(--background) !important; color: var(--foreground) !important;
+  border: 1px solid var(--input) !important; }}
+[data-testid="stSidebar"] .stButton button:hover {{ background: var(--accent) !important; }}
 [data-testid="stMainBlockContainer"], .block-container {{ padding: 0 !important; max-width: 100% !important; }}
 [data-testid="stMain"] [data-testid="stVerticalBlock"] {{ gap: 0; }}
 .stApp .stMarkdown, .stApp [data-testid="stMarkdown"] {{ margin-bottom: 0 !important; }}
@@ -294,14 +322,90 @@ def cabecalho_painel(aba):
                     st.rerun()
 
 
-def conteudo_painel(aba):
-    d = dados_painel(st.session_state.get("previsao"))
+def conteudo_painel(aba, filtros):
+    d = dict(dados_painel(st.session_state.get("previsao")))
+    if aba == "eda":
+        d["graficos"] = graficos()
     pagina = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}</style></head>
 <body><div id="root"></div>
-<script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";</script>
+<script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};</script>
 <script>{recurso("vendor.js")}</script><script>{recurso("painel.js")}</script></body></html>"""
     components.html(pagina, height=1450 if aba == "model" else 1500, scrolling=False)
+
+
+# ------------------------------------------------------------------ barra lateral
+PECAS_NOMES = ["Peça A", "Peça B", "Peça C", "Peça D"]
+FILTROS_PADRAO = {"f_pecas": [], "f_modelos": [], "f_risco": 0, "f_busca": "", "f_grupos": [], "f_expandir": False}
+
+
+@st.cache_data(show_spinner=False)
+def graficos():
+    return painel_dados.graficos_eda(DADOS)
+
+
+def filtrar_lista(lista, f):
+    b = f["busca"].strip().upper()
+    return [e for e in lista if (not f["pecas"] or e["comp"] in f["pecas"]) and (not f["modelos"] or e["model"] in f["modelos"])
+            and e["prob"] >= f["riscoMin"] and (not b or b in e["machine"].upper())]
+
+
+def barra_lateral(d, aba):
+    """Navegação, filtros da previsão, exportação da lista do dia, temas da análise exploratória e dados do modelo."""
+    u = st.session_state.usuario
+    for k, v in FILTROS_PADRAO.items():
+        st.session_state.setdefault(k, v)
+    with st.sidebar:
+        st.markdown(f"""<div class="lb-marca"><p class="eyebrow" style="opacity:.85;font-size:.625rem">Manutenção preditiva</p>
+          <p style="font-weight:800;font-style:italic;font-size:1.25rem">MaBiYama</p>
+          <p style="font-size:.8125rem;opacity:.9;margin-top:.25rem">{u["nome"]}</p></div>""", unsafe_allow_html=True)
+
+        st.markdown('<p class="lb-sec">Navegação</p>', unsafe_allow_html=True)
+        opcoes = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "perfil": "Perfil"}
+        escolha = st.radio("Ir para", list(opcoes), format_func=opcoes.get, index=list(opcoes).index(aba),
+                           label_visibility="collapsed", key=f"nav_{aba}")
+        if escolha != aba:
+            st.session_state.aba = escolha
+            st.rerun()
+        if aba == "perfil":
+            return None
+
+        st.markdown('<p class="lb-sec">Previsão</p>', unsafe_allow_html=True)
+        dias = d["dias"]
+        idia = st.selectbox("Dia (até 06:00 de)", range(len(dias)), format_func=lambda i: dias[i]["fimLongo"], key="f_dia")
+        st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="f_pecas")
+        modelos = sorted({e["model"] for dd in dias for e in dd["lista"] if e["model"] != "–"})
+        st.multiselect("Modelos de máquina", modelos, key="f_modelos", placeholder="Todos")
+        st.slider("Risco mínimo (%)", 0, 100, step=5, key="f_risco")
+        st.text_input("Buscar máquina", key="f_busca", placeholder="ex.: M048")
+        f = {"dia": idia, "pecas": st.session_state.f_pecas or [], "modelos": st.session_state.f_modelos,
+             "riscoMin": st.session_state.f_risco, "busca": st.session_state.f_busca}
+        sel = filtrar_lista(dias[idia]["lista"], f)
+        csv = pd.DataFrame(sel, columns=["machine", "comp", "model", "age", "prob"]).rename(columns={
+            "machine": "maquina", "comp": "peca", "model": "modelo", "age": "idade_anos", "prob": "prob_falha_pct"})
+        csv.insert(0, "prioridade", range(1, len(csv) + 1))
+        st.download_button(f"Baixar lista do dia ({len(sel)})", csv.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+                           file_name=f"prioridades_ate_06h_{'-'.join(dias[idia]['fimLongo'].split('/')[::-1])}.csv", mime="text/csv", disabled=not sel, width="stretch")
+        st.button("Limpar filtros", key="limpar", width="stretch", on_click=lambda: st.session_state.update(FILTROS_PADRAO))
+
+        if aba == "eda":
+            st.markdown('<p class="lb-sec">Análise exploratória</p>', unsafe_allow_html=True)
+            temas = list(dict.fromkeys(g["grupo"] for g in graficos()))
+            st.multiselect("Temas", temas, key="f_grupos", placeholder="Todos os temas")
+            st.toggle("Abrir todos os insights", key="f_expandir")
+            f.update({"grupos": st.session_state.f_grupos, "expandir": st.session_state.f_expandir})
+
+        k = d["kpi"]
+        fonte = "arquivo enviado nesta sessão" if st.session_state.get("previsao") else "melhor submissão do time"
+        st.markdown(f"""<p class="lb-sec">Sobre o modelo</p><div class="lb-sobre">
+          Previsão em uso: <b>{fonte}</b><br>AUC-PR na validação: <b>{k["ap"]}</b><br>
+          Kaggle público: <b>{k["apKaggle"]}</b><br>Horizonte: <b>{len(dias)} dias</b> · {k["maquinas"]} máquinas</div>""",
+                    unsafe_allow_html=True)
+        st.markdown('<div style="height:.25rem"></div>', unsafe_allow_html=True)
+        if st.button("Sair da conta", key="lb_sair", width="stretch"):
+            st.session_state.clear()
+            st.rerun()
+    return f
 
 
 # ------------------------------------------------------------------ perfil
@@ -397,11 +501,12 @@ def main():
         tela_login()
         return
     aba = st.session_state.get("aba", "model")
+    filtros = barra_lateral(dados_painel(st.session_state.get("previsao")), aba)
     if aba == "perfil":
         tela_perfil()
         return
     cabecalho_painel(aba)
-    conteudo_painel(aba)
+    conteudo_painel(aba, filtros)
 
 
 main()

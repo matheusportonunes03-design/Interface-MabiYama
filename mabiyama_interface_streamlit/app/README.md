@@ -54,3 +54,17 @@ Vindos do modelo:
 - Só as linhas em que D+1 é dia de grade (preventiva a cada 15 dias) recebem probabilidade; as demais ficam em 0%.
 - O login usa hashes em `secrets.toml` (`[usuarios."login"]` com `nome` e `senha_sha256`). "Esqueci minha senha", "Cadastre-se" e os botões Google/Lovable aparecem como no Lovable, mas só mostram um aviso: o acesso é criado pela equipe.
 - Nome e foto do perfil valem só durante a sessão (não há banco de dados).
+
+## Barra lateral
+
+- **Navegação** entre Previsão & Modelagem, Análise Exploratória e Perfil.
+- **Filtros da previsão**: dia, peças, modelos de máquina, risco mínimo e busca por máquina. Valem para o alerta das
+  cinco máquinas e para a tabela de prioridades.
+- **Baixar lista do dia**: CSV (separador `;`) com as candidatas do dia que passam nos filtros, em ordem de prioridade.
+- **Análise exploratória**: escolha de temas da galeria e opção de abrir todos os insights.
+- **Sobre o modelo**: previsão em uso, AUC-PR da validação, nota no Kaggle e horizonte.
+
+## Galeria da análise exploratória
+
+`dados/eda/` traz os 23 gráficos do notebook da Etapa 3 (WebP) e `graficos.json`, com título, tema e o parágrafo de
+insight de cada um. Para trocar um gráfico, substitua o `.webp` com o mesmo nome; para mudar o texto, edite o JSON.

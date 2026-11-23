@@ -70,3 +70,17 @@
   .seletor-dia { background: transparent; color: var(--muted-foreground); font-size: .75rem; border: 0; cursor: pointer; padding: 0 2px; font-family: inherit; }
   .seletor-dia:focus { outline: 1px solid var(--ring); border-radius: 4px; }
 }
+
+.insight-btn { display: inline-flex; flex: none; align-items: center; gap: .375rem; border-radius: 9999px; border: 1px solid var(--input);
+  background: var(--card); padding: .25rem .75rem; font-size: .75rem; font-weight: 700; color: var(--brand-deep); cursor: pointer; transition: background .15s; }
+.insight-btn:hover, .insight-btn[aria-expanded="true"] { background: var(--secondary); }
+.insight-txt { margin-top: .875rem; border-radius: .5rem; background: color-mix(in oklab, var(--amber) 10%, transparent);
+  border-left: 3px solid var(--amber); padding: .75rem .875rem; font-size: .875rem; line-height: 1.5; color: var(--foreground); }
+.galeria-btn { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: .75rem; background: transparent;
+  border: 0; padding: 0; cursor: pointer; text-align: left; }
+.galeria-num { display: inline-flex; height: 1.75rem; min-width: 1.75rem; align-items: center; justify-content: center; border-radius: 9999px;
+  background: var(--secondary); color: var(--brand); font-size: .75rem; font-weight: 800; }
+.galeria-img { display: block; width: 100%; margin-top: .75rem; border: 0; padding: 0; background: var(--card); cursor: zoom-in; border-radius: .5rem; overflow: hidden; }
+.galeria-img img { display: block; width: 100%; height: 13rem; object-fit: contain; object-position: center; transition: height .2s; }
+.galeria-img img.aberta { height: auto; cursor: zoom-out; }
+.galeria-btn:focus-visible, .galeria-img:focus-visible, .insight-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

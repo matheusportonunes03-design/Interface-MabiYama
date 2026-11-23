@@ -8,6 +8,20 @@ const {
 } = Recharts;
 
 const D = window.DADOS;
+const F = Object.assign({ dia: 0, pecas: [], modelos: [], riscoMin: 0, busca: "", grupos: [], expandir: false }, window.FILTROS || {});
+function filtrar(lista) {
+  const b = (F.busca || "").trim().toUpperCase();
+  return lista.filter((e) => (!F.pecas.length || F.pecas.includes(e.comp)) && (!F.modelos.length || F.modelos.includes(e.model))
+    && e.prob >= F.riscoMin && (!b || e.machine.toUpperCase().includes(b)));
+}
+function resumoFiltros() {
+  const p = [];
+  if (F.pecas.length) p.push(F.pecas.join(", "));
+  if (F.modelos.length) p.push(F.modelos.join(", "));
+  if (F.riscoMin > 0) p.push(`risco ≥ ${F.riscoMin}%`);
+  if ((F.busca || "").trim()) p.push(`máquina "${F.busca.trim()}"`);
+  return p.join(" · ");
+}
 const Q = { brand: "var(--chart-1)", amber: "var(--chart-2)", violet: "var(--chart-3)", sky: "var(--chart-4)", red: "var(--chart-5)" };
 const T = { fontSize: 11, fill: "var(--muted-foreground)" };
 const CA = { contentStyle: { borderRadius: 10, border: "1px solid var(--border)", fontSize: 12 } };
@@ -18,6 +32,9 @@ const ICONES = {
   gauge: ["m12 14 4-4", "M3.34 19a10 10 0 1 1 17.32 0"],
   wrench: ["M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"],
   "chevron-down": ["m6 9 6 6 6-6"],
+  lightbulb: ["M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5", "M9 18h6", "M10 22h4"],
+  filter: ["M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"],
+  maximize: ["M15 3h6v6", "M9 21H3v-6", "M21 3l-7 7", "M3 21l7-7"],
   "arrow-right": ["M5 12h14", "m12 5 7 7-7 7"],
   database: ["M3 5V19A9 3 0 0 0 21 19V5", "M3 12A9 3 0 0 0 21 12"],
   cpu: ["M12 20v2", "M12 2v2", "M17 20v2", "M17 2v2", "M2 12h2", "M2 17h2", "M2 7h2", "M20 12h2", "M20 17h2", "M20 7h2", "M7 20v2", "M7 2v2"],
@@ -45,9 +62,16 @@ function irPara(id) {
   t?.focus({ preventScroll: true });
 }
 
-function Cartao({ title, accent = "border-l-brand", children, className = "", id }) {
+function Cartao({ title, accent = "border-l-brand", children, className = "", id, insight }) {
+  const [aberto, setAberto] = useState(F.expandir);
   return html`<section id=${id} tabIndex="-1" class=${`card-canvas min-w-0 scroll-mt-6 ${accent} ${className}`}>
-    <h3 class="mb-3 text-base font-extrabold text-foreground">${title}</h3>${children}</section>`;
+    <div class="mb-3 flex items-start justify-between gap-3">
+      <h3 class="text-base font-extrabold text-foreground">${title}</h3>
+      ${insight && html`<button class="insight-btn" aria-expanded=${aberto} onClick=${() => setAberto(!aberto)}>
+        <${Icone} nome="lightbulb" className="h-4 w-4" />${aberto ? "Fechar" : "Insight"}</button>`}
+    </div>
+    ${children}
+    ${insight && aberto && html`<p class="insight-txt">${insight}</p>`}</section>`;
 }
 
 function Kpi({ icone, label, value, sub, accent, detail, target }) {
@@ -75,6 +99,7 @@ function corBarra(p) { return p > 60 ? "bg-violet" : p > 40 ? "bg-amber" : "bg-b
 
 function Modelagem({ dia }) {
   const k = D.kpi;
+  const rf = resumoFiltros();
   return html`<div class="grid gap-5">
     <div class="grid gap-5 md:grid-cols-4">
       <${Kpi} icone="triangle-alert" label="Peças em alto risco" value=${String(dia.altoRisco)} sub="prob. > 50% até 06:00 amanhã"
@@ -89,7 +114,9 @@ function Modelagem({ dia }) {
     </div>
     <div class="grid gap-5 lg:grid-cols-5">
       <${Cartao} id="prioridades" title="Prioridade de manutenção · hoje" accent="border-l-violet" className="lg:col-span-3 bg-violet-soft/40">
-        <div class="overflow-x-auto"><table class="w-full min-w-[560px] text-sm">
+        ${rf && html`<p class="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><${Icone} nome="filter" className="h-3.5 w-3.5" />
+          Filtros: ${rf} · ${dia.filtrada.length} de ${dia.lista.length} candidatas</p>`}
+        ${dia.top.length === 0 ? html`<p class="py-8 text-center text-sm text-muted-foreground">Nenhuma peça atende aos filtros neste dia.</p>` : html`<div class="overflow-x-auto"><table class="w-full min-w-[560px] text-sm">
           <thead><tr class="text-left text-xs text-muted-foreground">
             <th class="pb-2">#</th><th>Máquina</th><th>Modelo</th><th>Peça</th><th>Idade</th><th class="w-2/5">Prob. de falha</th></tr></thead>
           <tbody>${dia.top.map((e, t) => html`<tr key=${t} class="border-t border-border">
@@ -98,7 +125,7 @@ function Modelagem({ dia }) {
             <td><div class="flex items-center gap-2"><div class="h-2 flex-1 rounded-full bg-secondary">
               <div class=${`h-2 rounded-full ${corBarra(e.prob)}`} style=${{ width: `${e.prob}%` }}></div></div>
               <span class="w-9 text-right font-bold">${e.prob}%</span></div></td></tr>`)}</tbody>
-        </table></div>
+        </table></div>`}
       <//>
       <${Cartao} title="Importância das variáveis" className="lg:col-span-2">
         <${ResponsiveContainer} width="100%" height=${380}>
@@ -165,7 +192,7 @@ function Exploratoria() {
       <${Kpi} icone="database" label="Leituras de sensores" value=${e.kpi.leituras} sub="sensores A–D · vibração · clima" accent="border-l-brand-sky" />
     </div>
     <div class="grid gap-5 lg:grid-cols-3">
-      <${Cartao} title="Sinal antes da falha · sensor da peça (48h)" accent="border-l-violet" className="lg:col-span-2">
+      <${Cartao} title="Sinal antes da falha · sensor da peça (48h)" accent="border-l-violet" className="lg:col-span-2" insight="O sensor ligado à peça sai do normal cerca de 2 dias antes da falha: em média 0,27 desvio 48 h antes, 0,53 com 24 h e 0,65 na última hora. É essa rampa que o modelo procura às 05:00 de cada dia.">
         <${ResponsiveContainer} width="100%" height=${260}>
           <${LineChart} data=${e.sinal}>
             <${CartesianGrid} stroke="var(--border)" /><${XAxis} dataKey="h" tick=${T} unit="h" />
@@ -176,7 +203,7 @@ function Exploratoria() {
           <//>
         <//>
       <//>
-      <${Cartao} title="Falhas por peça">
+      <${Cartao} title="Falhas por peça" insight="A peça C é a que mais falha (225 no período), seguida de B (174) e A (165). A peça D falha bem menos (116) e quase só nos modelos A e D.">
         <${ResponsiveContainer} width="100%" height=${260}>
           <${BarChart} data=${e.porPeca}>
             <${CartesianGrid} stroke="var(--border)" vertical=${false} /><${XAxis} dataKey="c" tick=${T} /><${YAxis} tick=${T} />
@@ -189,7 +216,7 @@ function Exploratoria() {
       <//>
     </div>
     <div class="grid gap-5 lg:grid-cols-3">
-      <${Cartao} title="Falhas × manutenções por mês" accent="border-l-amber" className="lg:col-span-2">
+      <${Cartao} title="Falhas × manutenções por mês" accent="border-l-amber" className="lg:col-span-2" insight="As falhas ficam estáveis, entre 44 e 71 por mês, sem tendência, enquanto as preventivas seguem a grade de 15 dias (109 a 187 por mês). O volume de preventivas varia de um mês para outro sem que as falhas acompanhem.">
         <${ResponsiveContainer} width="100%" height=${240}>
           <${AreaChart} data=${e.mensal}>
             <${CartesianGrid} stroke="var(--border)" /><${XAxis} dataKey="m" tick=${T} />
@@ -200,7 +227,7 @@ function Exploratoria() {
           <//>
         <//>
       <//>
-      <${Cartao} title="Falhas por máquina, por idade (anos)" accent="border-l-brand">
+      <${Cartao} title="Falhas por máquina, por idade (anos)" accent="border-l-brand" insight="Máquinas com 12 anos ou mais têm cerca de 9 a 10 falhas cada, contra 5 a 6 nas mais novas. O efeito vem quase todo da peça A, que falha cerca de 5 vezes mais depois dos 11 anos.">
         <${ResponsiveContainer} width="100%" height=${240}>
           <${BarChart} data=${e.idade}>
             <${XAxis} dataKey="faixa" tick=${T} /><${YAxis} tick=${T} /><${Tooltip} ...${CA} />
@@ -210,7 +237,7 @@ function Exploratoria() {
       <//>
     </div>
     <div class="grid gap-5 lg:grid-cols-3">
-      <${Cartao} title="Alertas de erro: volume × 24h antes de falha" accent="border-l-violet">
+      <${Cartao} title="Alertas de erro: volume × 24h antes de falha" accent="border-l-violet" insight="O E1 é o código mais raro (447) e o mais ligado a falha: 31% vêm seguidos de falha em 24 h, contra 13% a 20% dos demais. Os erros que realmente avisam são os lançados às 06h; nos outros horários a maioria é ruído.">
         <${ResponsiveContainer} width="100%" height=${220}>
           <${BarChart} data=${e.erros}>
             <${XAxis} dataKey="e" tick=${T} /><${YAxis} yAxisId="a" tick=${T} /><${YAxis} yAxisId="b" orientation="right" tick=${T} unit="%" />
@@ -220,7 +247,7 @@ function Exploratoria() {
           <//>
         <//>
       <//>
-      <${Cartao} title="Falhas por modelo de máquina" accent="border-l-amber">
+      <${Cartao} title="Falhas por modelo de máquina" accent="border-l-amber" insight="Os modelos D e A têm menos máquinas, mas mais falhas por máquina (10,7 e 8,9) do que B e C (6,5 e 5,9). A diferença vem principalmente da peça D, que quase só falha nesses dois modelos.">
         <${ResponsiveContainer} width="100%" height=${220}>
           <${BarChart} data=${e.modelos}>
             <${XAxis} dataKey="m" tick=${T} /><${YAxis} tick=${T} /><${Tooltip} ...${CA} /><${Legend} wrapperStyle=${{ fontSize: 12 }} />
@@ -229,7 +256,7 @@ function Exploratoria() {
           <//>
         <//>
       <//>
-      <${Cartao} title="Qualidade da base recebida" accent="border-l-brand-sky">
+      <${Cartao} title="Qualidade da base recebida" accent="border-l-brand-sky" insight="Depois do tratamento, nenhuma tabela tem mais de 3,5% de valores vazios nem duplicatas relevantes. Os vazios da telemetria (1,6%) são as leituras de falha do sensor (0 e −999), marcadas por flag.">
         <table class="w-full text-sm">
           <thead><tr class="text-left text-xs text-muted-foreground"><th class="pb-2">Tabela</th><th>Linhas</th><th>Nulos</th><th>Duplic.</th><th></th></tr></thead>
           <tbody>${e.qualidade.map((q) => html`<tr key=${q.t} class="border-t border-border">
@@ -238,28 +265,66 @@ function Exploratoria() {
         </table>
       <//>
     </div>
+    <${Galeria} />
   </div>`;
 }
 
+
+function Galeria() {
+  const todos = D.graficos || [];
+  const grupos = [...new Set(todos.map((g) => g.grupo))].filter((g) => !F.grupos.length || F.grupos.includes(g));
+  const [aberto, setAberto] = useState(() => new Set(F.expandir ? todos.map((g) => g.n) : []));
+  const alterna = (n) => setAberto((a) => { const b = new Set(a); b.has(n) ? b.delete(n) : b.add(n); return b; });
+  if (!todos.length) return null;
+  return html`<section aria-label="Análises da Etapa 3" class="grid gap-6">
+    <div class="border-t border-border pt-5">
+      <h2 class="text-xl font-extrabold">Análises da Etapa 3</h2>
+      <p class="mt-1 text-sm text-muted-foreground">${todos.length} gráficos da análise exploratória, feitos só com o período de treino. Clique em um gráfico para ampliá-lo e ler o insight.</p>
+    </div>
+    ${grupos.map((gr) => html`<div key=${gr}>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-widest text-brand-deep">${gr}</h3>
+      <div class="grid gap-5 md:grid-cols-2">
+        ${todos.filter((g) => g.grupo === gr).map((g) => {
+          const ab = aberto.has(g.n);
+          return html`<article key=${g.n} class=${`card-canvas min-w-0 border-l-brand ${ab ? "md:col-span-2" : ""}`}>
+            <button class="galeria-btn" aria-expanded=${ab} onClick=${() => alterna(g.n)}>
+              <span class="flex min-w-0 items-center gap-3">
+                <span class="galeria-num">${g.n}</span>
+                <span class="truncate text-left text-base font-extrabold text-foreground">${g.titulo}</span>
+              </span>
+              <${Icone} nome="chevron-down" className=${`h-4 w-4 flex-none text-muted-foreground transition-transform ${ab ? "rotate-180" : ""}`} />
+            </button>
+            <button class="galeria-img" aria-label=${`${ab ? "Recolher" : "Ampliar"}: ${g.titulo}`} onClick=${() => alterna(g.n)}>
+              <img src=${g.src} alt=${g.titulo} loading="lazy" class=${ab ? "aberta" : ""} />
+            </button>
+            ${ab && html`<div class="insight-txt flex gap-3"><${Icone} nome="lightbulb" className="mt-0.5 h-4 w-4 flex-none text-amber" /><p>${g.insight}</p></div>`}
+          </article>`;
+        })}
+      </div>
+    </div>`)}
+  </section>`;
+}
+
 function Painel() {
-  const [iDia, setIDia] = useState(D.diaInicial);
-  const dia = D.dias[iDia];
+  const base = D.dias[Math.min(F.dia, D.dias.length - 1)];
+  const filtrada = filtrar(base.lista);
+  const dia = { ...base, filtrada, top: filtrada.slice(0, 10), altoRisco: filtrada.filter((e) => e.prob > 50).length };
+  const rf = resumoFiltros();
   return html`<div class="bg-background font-sans">
     <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
       <section aria-label="Máquinas com maior risco" class="mb-6 border-l-4 border-amber bg-amber/10 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="flex items-center gap-2 font-extrabold"><${Icone} nome="triangle-alert" className="h-5 w-5 text-violet" /> Atenção: cinco máquinas com maior risco</h2>
-          <span class="flex items-center gap-1 text-xs text-muted-foreground">Até 06:00 de
-            <select aria-label="Dia da previsão" class="seletor-dia" value=${iDia} onChange=${(ev) => setIDia(Number(ev.target.value))}>
-              ${D.dias.map((d, i) => html`<option key=${i} value=${i}>${d.fimLongo}</option>`)}
-            </select></span>
+          <h2 class="flex items-center gap-2 font-extrabold"><${Icone} nome="triangle-alert" className="h-5 w-5 text-violet" /> Atenção: ${dia.top.length >= 5 ? "cinco máquinas" : "máquinas"} com maior risco</h2>
+          <span class="text-xs text-muted-foreground">Até 06:00 de ${dia.fimLongo}${rf ? ` · ${rf}` : ""}</span>
         </div>
-        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        ${dia.top.length === 0
+          ? html`<p class="mt-4 text-sm text-muted-foreground">Nenhuma peça atende aos filtros da barra lateral neste dia.</p>`
+          : html`<div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           ${dia.top.slice(0, 5).map((e) => html`<button key=${e.machine + e.comp} class=${BTN_ALERTA}
               onClick=${() => { if (window.ABA !== "model") return; requestAnimationFrame(() => irPara("prioridades")); }}>
             <span><strong class="block">${e.machine}</strong><span class="text-xs text-muted-foreground">${e.comp} · ${e.model}</span></span>
             <span class="text-xl font-extrabold text-violet">${e.prob}%</span></button>`)}
-        </div>
+        </div>`}
       </section>
       ${window.ABA === "model" ? html`<${Modelagem} dia=${dia} />` : html`<${Exploratoria} />`}
     </main>
