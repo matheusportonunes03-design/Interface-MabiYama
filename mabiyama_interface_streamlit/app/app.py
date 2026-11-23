@@ -267,10 +267,22 @@ def tela_login():
 
 
 # ------------------------------------------------------------------ painel
+def _versao_dados() -> str:
+    """Muda quando o código ou os dados mudam: invalida o cache e recarrega painel_dados após um deploy."""
+    arqs = [RAIZ / "painel_dados.py"] + sorted(DADOS.rglob("*.csv")) + sorted(DADOS.rglob("*.json"))
+    return hashlib.md5("|".join(f"{a.name}:{a.stat().st_mtime_ns}:{a.stat().st_size}" for a in arqs).encode()).hexdigest()
+
+
 @st.cache_data(show_spinner=False)
-def dados_painel(previsao: bytes | None):
+def _dados_painel(previsao: bytes | None, versao: str):
+    import importlib
+    importlib.reload(painel_dados)
     sub = pd.read_csv(io.BytesIO(previsao)) if previsao else None
     return painel_dados.montar(DADOS, sub)
+
+
+def dados_painel(previsao: bytes | None):
+    return _dados_painel(previsao, _versao_dados())
 
 
 def cabecalho_painel(aba):
@@ -346,7 +358,7 @@ def graficos():
 
 def filtrar_lista(lista, f):
     b = f["busca"].strip().upper()
-    return [e for e in lista if (not f["pecas"] or e["comp"] in f["pecas"]) and (not f["modelos"] or e["model"] in f["modelos"])
+    return [e for e in lista if (not f["pecas"] or e["comp"] in f["pecas"]) and (not f["modelos"] or e.get("model") in f["modelos"])
             and e["prob"] >= f["riscoMin"] and (not b or b in e["machine"].upper())]
 
 
@@ -374,13 +386,13 @@ def barra_lateral(d, aba):
         dias = d["dias"]
         idia = st.selectbox("Dia (até 06:00 de)", range(len(dias)), format_func=lambda i: dias[i]["fimLongo"], key="f_dia")
         st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="f_pecas")
-        modelos = sorted({e["model"] for dd in dias for e in dd["lista"] if e["model"] != "–"})
+        modelos = sorted({e.get("model") for dd in dias for e in dd.get("lista", []) if e.get("model") not in (None, "–")})
         st.multiselect("Modelos de máquina", modelos, key="f_modelos", placeholder="Todos")
         st.slider("Risco mínimo (%)", 0, 100, step=5, key="f_risco")
         st.text_input("Buscar máquina", key="f_busca", placeholder="ex.: M048")
         f = {"dia": idia, "pecas": st.session_state.f_pecas or [], "modelos": st.session_state.f_modelos,
              "riscoMin": st.session_state.f_risco, "busca": st.session_state.f_busca}
-        sel = filtrar_lista(dias[idia]["lista"], f)
+        sel = filtrar_lista(dias[idia].get("lista", []), f)
         csv = pd.DataFrame(sel, columns=["machine", "comp", "model", "age", "prob"]).rename(columns={
             "machine": "maquina", "comp": "peca", "model": "modelo", "age": "idade_anos", "prob": "prob_falha_pct"})
         csv.insert(0, "prioridade", range(1, len(csv) + 1))
