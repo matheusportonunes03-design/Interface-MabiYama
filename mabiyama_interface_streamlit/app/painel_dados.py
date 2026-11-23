@@ -115,7 +115,7 @@ def dados_modelagem(pasta, sub=None):
     n_maq = int(lg["id_maquina"].nunique())
     return {
         "dias": dias, "diaInicial": 0,
-        "kpi": {"ap": br(ap, 2), "apKaggle": "0,691", "recall20": f"{recall20 * 100:.0f}%", "baseline": br(base, 2),
+        "kpi": {"ap": br(ap, 2), "apKaggle": "0,708", "recall20": f"{recall20 * 100:.0f}%", "baseline": br(base, 2),
                 "maquinas": n_maq, "pares": n_maq * 4},
         "imp": imp, "pr": pr, "cal": cal, "cm": cm,
     }

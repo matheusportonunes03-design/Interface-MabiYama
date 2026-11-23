@@ -44,7 +44,7 @@ python preparar_dados.py --bases <pasta com as bases tratadas>
 Vindos do modelo:
 | arquivo | conteúdo |
 |---|---|
-| previsao.csv | previsão no formato da submissão (hoje a y01, Kaggle 0,69146). Pode ser trocada pelo botão "Enviar dados do dia". |
+| previsao.csv | previsão no formato da submissão (hoje a g2, Kaggle 0,70769: fusão "3 melhores posições" de y09 + v2 + membros A–E). Pode ser trocada pelo botão "Enviar dados do dia". |
 | validacao.csv | escores fora da amostra da sub 37, rodada nas bases tratadas, nas 3 janelas de validação temporal |
 | importancia.csv | importância das variáveis do ExtraTrees "hat" da sub 37, treinado nas bases tratadas |
 
