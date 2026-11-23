@@ -29,8 +29,13 @@ st.set_page_config(page_title="MaBiYama · Painel da Frota", page_icon="⚙️",
 
 # ------------------------------------------------------------------ recursos estáticos
 @st.cache_resource
-def recurso(nome: str) -> str:
+def _recurso(nome: str, versao: int) -> str:
     return (FRONT / nome).read_text(encoding="utf-8")
+
+
+def recurso(nome: str) -> str:
+    """Lê um arquivo do frontend; recarrega sozinho quando o arquivo muda (evita servir o JS/CSS antigo após deploy)."""
+    return _recurso(nome, (FRONT / nome).stat().st_mtime_ns)
 
 
 def svg_uri(svg: str) -> str:
@@ -352,8 +357,13 @@ FILTROS_PADRAO = {"f_pecas": [], "f_modelos": [], "f_risco": 0, "f_busca": "", "
 
 
 @st.cache_data(show_spinner=False)
-def graficos():
+def _graficos(versao: str):
     return painel_dados.graficos_eda(DADOS)
+
+
+def graficos():
+    eda = DADOS / "eda"
+    return _graficos("|".join(f"{a.name}:{a.stat().st_mtime_ns}" for a in sorted(eda.iterdir())) if eda.exists() else "")
 
 
 def filtrar_lista(lista, f):
