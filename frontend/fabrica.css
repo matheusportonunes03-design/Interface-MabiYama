@@ -1,0 +1,73 @@
+#mby{position:fixed;inset:0;z-index:999979;pointer-events:none;font-family:"Nunito",system-ui,sans-serif;color:#17203a}
+#mby.travado{z-index:2147483000;pointer-events:auto}
+#mby canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;image-rendering:auto}
+body.mby-travado [data-testid="stExpandSidebarButton"]{display:none!important}
+.mby-bolhas{position:absolute;inset:0;pointer-events:none}
+.mby-b{position:absolute;left:0;top:0;width:max-content;max-width:min(300px,calc(100vw - 20px));min-width:130px;box-sizing:border-box;background:#fff;color:#17203a;border:2px solid #17203a;border-radius:12px;
+  padding:15px 12px 10px;font-size:13.5px;line-height:1.38;font-weight:700;box-shadow:0 3px 0 rgba(23,32,58,.28),0 12px 26px rgba(10,20,50,.3);opacity:0;transform:translateY(6px) scale(.96);
+  transition:opacity .18s,transform .18s;pointer-events:none}
+.mby-b.on{opacity:1;transform:none}
+.mby-b.grande{max-width:min(350px,calc(100vw - 20px));width:350px}
+.mby-b .mby-n{position:absolute;left:10px;top:-11px;background:#1e3f9a;color:#fff;border:2px solid #17203a;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:1px 9px;text-transform:uppercase;line-height:1.35}
+.mby-b.rb .mby-n{background:#e23d4d}
+.mby-b::after{content:"";position:absolute;width:11px;height:11px;background:#fff;border:2px solid #17203a;border-top:0;border-left:0}
+.mby-b.t-cima::after{left:calc(var(--tx,50%) - 6px);bottom:-8px;transform:rotate(45deg)}
+.mby-b.t-baixo::after{left:calc(var(--tx,50%) - 6px);top:-8px;transform:rotate(-135deg)}
+.mby-b.t-esq::after{left:-8px;top:calc(var(--ty,24px) - 6px);transform:rotate(135deg)}
+.mby-b.t-dir::after{right:-8px;top:calc(var(--ty,24px) - 6px);transform:rotate(-45deg)}
+.mby-l{list-style:none;margin:9px 0 2px;padding:0;display:grid;gap:5px}
+.mby-l li{display:grid;grid-template-columns:20px 44px 54px 1fr 34px;align-items:center;gap:6px;font-size:12.5px;opacity:0;transform:translateX(-8px);transition:opacity .25s,transform .25s}
+.mby-l li.on{opacity:1;transform:none}
+.mby-l em{font-style:normal;width:20px;height:20px;border-radius:50%;border:2px solid #17203a;color:#fff;font-weight:900;font-size:11px;display:grid;place-items:center;box-sizing:border-box}
+.mby-l b{font-weight:900}.mby-l span{color:#4a5b7d;font-weight:700}.mby-l strong{text-align:right;font-weight:900}
+.mby-l i{display:block;height:8px;border-radius:99px;background:#e6ecf6;overflow:hidden}.mby-l u{display:block;height:100%;border-radius:99px;text-decoration:none}
+.c1{background:#35d07f}.c2{background:#ffb020}.c3{background:#ff4d4d}
+.mby-fim{margin:9px 0 0;padding-top:8px;border-top:2px dashed #cfd8e6;font-size:13px}
+.mby-topo{position:absolute;top:16px;left:50%;transform:translate(-50%,-14px);background:rgba(255,255,255,.96);border:2px solid #17203a;border-radius:12px;padding:6px 16px;text-align:center;font-size:12.5px;font-weight:700;
+  letter-spacing:.03em;opacity:0;transition:opacity .4s,transform .4s;box-shadow:0 3px 0 rgba(23,32,58,.3);line-height:1.35}
+.mby-topo.on{opacity:1;transform:translate(-50%,0)}.mby-topo b{font-weight:900;font-style:italic;color:#1e3f9a}.mby-topo span{font-weight:800;font-size:14px}
+.mby-toast{position:absolute;transform:translate(-50%,-100%);background:#fff7d6;border:2px solid #17203a;border-radius:8px;padding:3px 10px;font-weight:800;font-size:12.5px;white-space:nowrap;animation:mbyUp 1.6s ease-out forwards;box-shadow:0 2px 0 rgba(23,32,58,.3)}
+@keyframes mbyUp{0%{opacity:0;margin-top:10px}15%{opacity:1;margin-top:0}80%{opacity:1}100%{opacity:0;margin-top:-34px}}
+.mby-pular,.mby-tg{position:absolute;pointer-events:auto;cursor:pointer;font:800 12.5px "Nunito",system-ui,sans-serif;border-radius:999px;border:2px solid #17203a;background:#fff;color:#17203a;padding:7px 15px;box-shadow:0 3px 0 rgba(23,32,58,.3)}
+.mby-pular{right:18px;bottom:18px}.mby-pular:hover,.mby-tg:hover{background:#eef4ff}.mby-pular b{margin-left:3px}
+.mby-tg{display:none;right:14px;top:12px;padding:4px 12px;font-size:11.5px;opacity:.8}
+#mby:not(.travado) .mby-tg{display:block}.mby-tg:hover{opacity:1}
+.mby-dica{position:absolute;left:50%;bottom:118px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:800;font-size:12.5px;color:#fff;background:#1e3f9a;border:2px solid #17203a;border-radius:999px;padding:6px 16px 8px;opacity:0;transition:opacity .4s;box-shadow:0 3px 0 rgba(23,32,58,.3)}
+.mby-dica.on{opacity:1}.mby-dica i{width:9px;height:9px;border-right:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(45deg);animation:mbyBob 1s ease-in-out infinite;margin-top:-3px}
+@keyframes mbyBob{0%,100%{translate:0 -3px}50%{translate:0 3px}}
+#mby.mby-fora .mby-dica{opacity:0}
+@media (prefers-reduced-motion:reduce){.mby-b,.mby-toast{transition:none;animation:none}}
+
+.mby-b.t-barra::after{display:none}
+.mby-b.t-barra{max-width:none;font-size:14px;padding:16px 16px 11px;border-radius:14px;box-shadow:0 3px 0 rgba(23,32,58,.28),0 10px 30px rgba(10,20,50,.25)}
+iframe[title="mby"]{display:none!important}
+[data-testid="stElementContainer"]:has(> iframe[title="mby"]),[data-testid="stElementContainer"]:has(iframe[title="mby"]){display:none!important}
+body.mby-gut [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > *:not(.st-key-cab):not(:has(.st-key-cab)):not(.st-key-pf_cab):not(:has(.st-key-pf_cab)){padding-right:var(--mby-g,150px)!important;box-sizing:border-box!important}
+body.mby-gut [data-testid="stMainBlockContainer"]{padding-bottom:100px!important}
+.mby-foco{position:absolute;pointer-events:none;border:3px solid #1e3f9a;border-radius:16px;box-shadow:0 0 0 4px rgba(30,63,154,.18),0 0 22px rgba(30,63,154,.35);opacity:0;transition:opacity .25s,left .3s,top .3s,width .3s,height .3s}
+.mby-foco.rb{border-color:#e23d4d;box-shadow:0 0 0 4px rgba(226,61,77,.18),0 0 22px rgba(226,61,77,.35)}
+.mby-foco.on{opacity:1}
+.mby-rot{display:inline-block;margin-right:8px;padding:0 8px;border-radius:999px;background:#eef3fb;border:1.5px solid #17203a;font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
+.mby-login .mby-pular,.mby-login .mby-tg{display:none!important}
+.mby-b.grande{width:auto}
+
+/* diálogo da companhia: o Beto pergunta, o Floco (o modelo) explica */
+.mby-dlg{position:absolute;left:0;top:0;box-sizing:border-box;background:#fff;color:#17203a;border:2px solid #17203a;border-radius:14px;padding:10px 14px 11px;pointer-events:auto;cursor:pointer;
+  box-shadow:0 3px 0 rgba(23,32,58,.28),0 14px 34px rgba(10,20,50,.28);opacity:0;transform:translateY(8px);transition:opacity .22s,transform .22s}
+.mby-dlg.on{opacity:1;transform:none}
+.mby-dlg::after{content:"";position:absolute;right:-8px;top:calc(var(--ty,24px) - 6px);width:11px;height:11px;background:#fff;border:2px solid #17203a;border-left:0;border-bottom:0;transform:rotate(45deg)}
+.mby-dlg-cab{display:flex;align-items:center;gap:8px;margin:0 0 6px}
+.mby-dlg .mby-rot{margin:0;padding:1px 9px;border-radius:999px;background:#eef3fb;border:1.5px solid #17203a;font-size:10.5px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;line-height:1.5}
+.mby-dlg-dica{font-size:11px;font-weight:700;color:#7a8aa8;transition:opacity .3s}
+.mby-dlg.lido .mby-dlg-dica{opacity:0}
+.mby-x{margin-left:auto;width:24px;height:24px;border-radius:999px;border:1.5px solid #17203a;background:#fff;color:#17203a;font:900 15px/1 "Nunito",system-ui,sans-serif;cursor:pointer;display:grid;place-items:center;padding:0}
+.mby-x:hover{background:#eef4ff}
+.mby-fl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start;font-size:13.5px;line-height:1.42;font-weight:700}
+.mby-fl + .mby-fl{margin-top:7px;padding-top:7px;border-top:2px dashed #dfe6f1}
+.mby-fl.rb{display:none}.mby-fl.rb.on{display:grid}
+.mby-fl .mby-n{position:static;display:inline-block;margin-top:1px;border:2px solid #17203a;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:.07em;padding:0 8px;text-transform:uppercase;line-height:1.45;color:#fff;white-space:nowrap}
+.mby-fl.op .mby-n{background:#1e3f9a}.mby-fl.rb .mby-n{background:#e23d4d}
+.mby-fl.op .mby-t{color:#3c4a66}
+.mby-fl.rb .mby-t{color:#17203a;font-weight:800}
+#mby.mby-fora .mby-dlg{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.mby-dlg{transition:none}}
