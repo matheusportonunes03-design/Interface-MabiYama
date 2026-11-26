@@ -126,7 +126,6 @@ function Modelagem({ dia }) {
       <${Kpi} icone="cpu" label="Última previsão" value="05:00" sub=${`${dia.execCurto} · ${k.pares} pares máquina×peça`} accent="border-l-brand-sky" target="execucao"
         detail=${`Execução às 05:00 de ${dia.execCurto}, avaliando quatro peças em cada uma das ${k.maquinas} máquinas. A previsão considera a janela até 06:00 do dia seguinte.`} />
     </div>`}
-    ${window.Replay && html`<${window.Replay} />`}
     <div class="grid gap-5 lg:grid-cols-5">
       <${Cartao} id="prioridades" title="Prioridade de manutenção · hoje" accent="border-l-violet" className="lg:col-span-3 bg-violet-soft/40">
         ${rf && html`<p class="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><${Icone} nome="filter" className="h-3.5 w-3.5" />
@@ -136,7 +135,7 @@ function Modelagem({ dia }) {
             <th class="pb-2">#</th><th>Máquina</th><th>Modelo</th><th>Peça</th><th>Idade</th><th class="w-2/5">Prob. de falha</th></tr></thead>
           <tbody>${dia.top.map((e, t) => html`<tr key=${t} class="border-t border-border">
             <td class="py-2 font-bold text-muted-foreground">${t + 1}</td><td class="font-bold">${e.machine}</td>
-            <td>${e.model}</td><td>${e.comp}</td><td>${e.age === null ? "–" : `${e.age} a`}</td>
+            <td>${e.model}</td><td>${e.comp}</td><td>${e.age === null || e.age === undefined || Number.isNaN(e.age) ? "–" : `${e.age} a`}</td>
             <td><div class="flex items-center gap-2"><div class="h-2 flex-1 rounded-full bg-secondary">
               <div class=${`h-2 rounded-full ${corBarra(e.prob)}`} style=${{ width: `${e.prob}%` }}></div></div>
               <span class="w-9 text-right font-bold">${e.prob}%</span></div></td></tr>`)}</tbody>

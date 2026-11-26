@@ -352,9 +352,10 @@ def cabecalho_painel(aba):
       .st-key-envio button:hover { background: color-mix(in oklab, var(--card) 90%, transparent) !important; }
       .st-key-envio button [data-testid="stIconMaterial"] { display: none; }
     </style>""", unsafe_allow_html=True)
-    st.markdown(f"""<style>.st-key-aba_{aba} button {{ background: var(--card) !important; color: var(--brand-deep) !important;
-        box-shadow: 0 6px 16px -8px rgb(0 0 0 / .45) !important; }}
-      .st-key-aba_{aba} button:hover {{ background: var(--card) !important; }}</style>""", unsafe_allow_html=True)
+    st.markdown(f"""<style>.stApp .st-key-abas .st-key-aba_{aba} button {{ background: var(--tab-ativa, var(--card)) !important;
+        color: var(--tab-ativa-txt, var(--brand-deep)) !important; border-color: transparent !important; box-shadow: 0 6px 16px -8px rgb(0 0 0 / .45) !important; }}
+      .stApp .st-key-abas .st-key-aba_{aba} button p {{ color: inherit !important; }}
+      .stApp .st-key-abas .st-key-aba_{aba} button:hover {{ background: var(--tab-ativa, var(--card)) !important; }}</style>""", unsafe_allow_html=True)
     aplicar({"envio": ["ico:upload"], "aba_perfil": ["ico:user"]})
 
     with st.container(key="cab"):
@@ -391,9 +392,9 @@ def conteudo_painel(aba, filtros):
 <style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
 <body><div id="root"></div>
 <script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};
-window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k in ("replay", "raiox")} if aba == "model" else {}, ensure_ascii=False)};</script>
+window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k == "raiox"} if aba == "model" else {}, ensure_ascii=False)};</script>
 <script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("painel.js")}</script></body></html>"""
-    components.html(pagina, height=2900 if aba == "model" else 1500, scrolling=False)
+    components.html(pagina, height=2300 if aba == "model" else 1500, scrolling=False)
 
 
 CENARIOS = {
@@ -418,6 +419,19 @@ def _recorte_sim(replay: dict, periodo, pecas, linhas) -> dict:
             dias.append(d)
             por.append({"c": [e for e in x["c"] if e[1] in okp and e[0] in okm], "f": [e for e in x["f"] if e[1] in okp and e[0] in okm]})
     return {**replay, "dias": dias, "porDia": por}
+
+
+def replay_frota():
+    """Replay da validação (rede hidráulica) numa página própria, usado na aba Máquinas."""
+    ex = extras()
+    if not ex.get("replay"):
+        return
+    pagina = f"""<!doctype html><html lang="pt-BR" class="{tema.classe_html()}"><head><meta charset="utf-8">
+<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
+<body><div id="root"></div>
+<script>window.EXTRAS={json.dumps({"replay": ex["replay"]}, ensure_ascii=False)};</script>
+<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("replay_pagina.js")}</script></body></html>"""
+    components.html(pagina, height=860, scrolling=False)
 
 
 def pagina_simulador():
@@ -496,7 +510,8 @@ def barra_lateral(d, aba):
 
         tema.secao("Previsão")
         dias = d["dias"]
-        idia = st.selectbox("Dia (até 06:00 de)", range(len(dias)), format_func=lambda i: dias[i]["fimLongo"], key="f_dia")
+        idia = st.selectbox("Dia (até 06:00 de)", range(len(dias) - 1, -1, -1), format_func=lambda i: dias[i]["fimLongo"], key="f_dia",
+                            help="Do mais recente para o mais antigo.")
         st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="f_pecas")
         modelos = sorted({e.get("model") for dd in dias for e in dd.get("lista", []) if e.get("model") not in (None, "–")})
         st.multiselect("Modelos de máquina", modelos, key="f_modelos", placeholder="Todos")
@@ -538,7 +553,7 @@ def tela_perfil():
       .st-key-pf_nav { margin-top: 1.25rem !important; gap: .5rem !important; }
       .st-key-pf_voltar button { background: transparent !important; color: var(--primary-foreground) !important; border: 0 !important; height: 2.25rem; padding: 0 1rem !important; }
       .st-key-pf_voltar button:hover { background: var(--accent) !important; color: var(--foreground) !important; }
-      .st-key-pf_atual button { background: var(--background) !important; color: var(--brand-deep) !important; border: 0 !important; height: 2.25rem; padding: 0 1rem !important; box-shadow: 0 1px 3px rgb(0 0 0 / .1) !important; }
+      .st-key-pf_atual button { background: var(--tab-ativa, var(--background)) !important; color: var(--tab-ativa-txt, var(--brand-deep)) !important; border: 0 !important; height: 2.25rem; padding: 0 1rem !important; box-shadow: 0 1px 3px rgb(0 0 0 / .1) !important; }
       .st-key-pf_corpo { max-width: 36rem; margin: 0 auto; padding: 2.5rem 1.5rem; width: 100%; }
       .st-key-pf_form { gap: 1.5rem !important; margin-top: 1.5rem; }
       .st-key-pf_foto_linha { gap: 1.25rem !important; align-items: center !important; flex-wrap: wrap; }
@@ -639,7 +654,7 @@ def main():
         sub = pd.read_csv(io.BytesIO(prev)) if prev else pd.read_csv(DADOS / "previsao.csv")
         d = dados_painel(prev)
         prob = {(e["machine"], "peca_" + e["comp"][-1], dd["fimLongo"]): e["prob"] for dd in d["dias"] for e in dd.get("lista", [])}
-        paginas.pagina_maquina(sub, prob)
+        paginas.pagina_maquina(sub, prob, replay=replay_frota)
     else:
         conteudo_painel(aba, filtros)
     tema.rodape_lateral()

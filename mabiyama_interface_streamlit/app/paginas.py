@@ -109,7 +109,7 @@ def _css():
       .st-key-pg [data-testid="stTabs"] button p { font-weight: 700; font-size: .875rem; }
       .st-key-pg [data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: .5rem; }
       .st-key-pg .stDownloadButton button, .st-key-pg .stButton button { background: var(--brand) !important; color: var(--primary-foreground) !important; border: 0 !important; }
-      .st-key-pg .stDownloadButton button:hover, .st-key-pg .stButton button:hover { background: var(--brand-deep) !important; }
+      .st-key-pg .stDownloadButton button:hover, .st-key-pg .stButton button:hover { background: var(--brand-solid, var(--brand-deep)) !important; }
       .st-key-pg h3 { font-size: 1.1rem !important; font-weight: 800; padding-top: 1rem !important; margin: 0 !important; }
     </style>""", unsafe_allow_html=True)
 
@@ -351,7 +351,7 @@ def _set_maq(m):
     st.session_state.ficha_maq = m
 
 
-def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict):
+def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
     """previsao: tabela id/peca_A..D usada no painel; prob_dia: {(maquina, peca, 'dd/mm/aaaa'): prob%} das listas do painel."""
     with st.container(key="pg"):
         _css()
@@ -413,6 +413,11 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict):
                                file_name=f"historico_{m}.csv", mime="text/csv", width="stretch")
 
         info = maq.set_index("id_maquina").loc[m]
+        if replay:
+            st.markdown('<p class="pg-tit">Frota</p><p class="pg-sub">A planta inteira dia a dia: o risco que o modelo deu às 05:00 contra as falhas que '
+                        'aconteceram de verdade na validação de 2023. Para olhar uma máquina, use a ficha logo abaixo.</p>', unsafe_allow_html=True)
+            replay()
+            st.markdown('<div style="height:.75rem"></div>', unsafe_allow_html=True)
         st.markdown(f'<p class="pg-tit">Ficha da máquina {m}</p><p class="pg-sub">Cadastro, risco previsto no período de teste, histórico de falhas e '
                     'manutenções e o comportamento dos sensores. Troque de máquina pela barra lateral.</p>', unsafe_allow_html=True)
         _cartoes([("Modelo", (lambda t: t[:1].upper() + t[1:])(str(info.get("modelo", "–")).replace("_", " "))), ("Idade", f"{info.get('idade', np.nan):.0f} anos" if pd.notna(info.get("idade")) else "–"),

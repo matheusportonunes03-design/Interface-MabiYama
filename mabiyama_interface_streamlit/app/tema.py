@@ -10,13 +10,14 @@ MARCA = RAIZ / "frontend" / "marca"
 # ------------------------------------------------------------------ paleta escura (mesmas variáveis do tema claro do Lovable)
 VARS_ESCURO = """
   --background: oklch(17.5% .032 262); --foreground: oklch(95% .01 250); --card: oklch(22% .038 262);
-  --border: oklch(31% .04 262); --input: oklch(35% .04 262); --ring: oklch(55% .08 258);
-  --muted: oklch(26.5% .038 262); --muted-foreground: oklch(73% .03 255);
+  --border: oklch(33% .045 262); --input: oklch(42% .05 262); --ring: oklch(55% .08 258);
+  --muted: oklch(26.5% .038 262); --muted-foreground: oklch(77% .03 255);
   --secondary: oklch(26.5% .038 262); --secondary-foreground: oklch(93% .01 250); --accent: oklch(29% .045 262);
   --primary: oklch(32% .06 262); --primary-foreground: oklch(98.4% .003 247.858);
-  --brand: oklch(66% .17 254); --brand-deep: oklch(60% .17 258); --brand-sky: oklch(78% .1 228);
+  --brand: oklch(62% .18 256); --brand-deep: oklch(76% .12 252); --brand-solid: oklch(52% .19 258);
+  --tab-ativa: oklch(96% .02 250); --tab-ativa-txt: oklch(30% .12 262); --brand-sky: oklch(78% .1 228);
   --violet: oklch(74% .13 300); --violet-soft: oklch(31% .07 300); --amber: oklch(80% .15 72); --success: oklch(73% .15 155);
-  --chart-1: oklch(66% .17 254); --chart-2: oklch(80% .15 72); --chart-3: oklch(74% .13 300); --chart-4: oklch(78% .1 228);
+  --chart-1: oklch(64% .17 254); --chart-2: oklch(80% .15 72); --chart-3: oklch(74% .13 300); --chart-4: oklch(78% .1 228);
   --chart-5: oklch(68% .19 25);
   --gradient-header: linear-gradient(100deg, oklch(23% .08 264), oklch(36% .14 259) 58%, oklch(50% .11 232));
   --shadow-card: 0 6px 18px -8px rgb(0 0 0 / .55);
@@ -39,7 +40,11 @@ def css_iframe() -> str:
     return (":root{" + VARS_ESCURO + "}"
             ".recharts-default-tooltip{background:var(--card)!important;border-color:var(--border)!important;color:var(--foreground)}"
             ".recharts-cartesian-grid line{stroke:var(--border)}"
-            "img[src*='webp']{filter:brightness(.9) contrast(1.05);border-radius:.5rem}")
+            "img[src*='webp']{filter:brightness(.9) contrast(1.05);border-radius:.5rem}"
+            ".xp-btn.on,.xp-play,.sm-btn.pri{background:var(--brand-solid)!important;border-color:var(--brand-solid)!important;color:#fff!important}"
+            ".xp-play:hover,.sm-btn.pri:hover{background:var(--brand)!important}"
+            ".xp-btn,.sm-btn,.insight-btn{border-color:var(--input)!important}"
+            ".insight-btn{color:var(--brand-deep)!important}")
 
 
 # ------------------------------------------------------------------ ondas (fluxo de água)
@@ -166,10 +171,13 @@ def css_tema():
 .st-key-tema_box button:nth-of-type(2) {{ --ico: url("{_ico(LUA)}"); }}
 
 /* ---------- títulos de seção da barra lateral */
-section[data-testid="stSidebar"] {{ min-width: 19.5rem !important; }}
+section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !important; }}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+[data-testid="stExpandSidebarButton"] svg, [data-testid="stSidebarCollapseButton"] svg,
+[data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"], [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"] {{ color: var(--brand-deep) !important; fill: currentColor; }}
 [data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {{ padding: 0 1.1rem 2rem !important; }}
-[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.lb-titulo) {{ margin-top: .9rem; }}
-.lb-titulo {{ display: flex; align-items: center; gap: .55rem; margin: 0 0 .45rem; }}
+[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.lb-titulo) {{ margin-top: .85rem; }}
+.lb-titulo {{ display: flex; align-items: center; gap: .55rem; margin: 0 0 .2rem; min-height: 26px; }}
 .lb-titulo .ic {{ flex: 0 0 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; color: #fff;
   background: linear-gradient(135deg, var(--brand-deep), var(--brand) 55%, var(--brand-sky));
   box-shadow: 0 4px 10px -4px color-mix(in oklab, var(--brand) 70%, transparent); }}
@@ -234,6 +242,17 @@ section[data-testid="stSidebar"] {{ min-width: 19.5rem !important; }}
 .stApp [data-testid="stCheckbox"] span, .stApp [data-testid="stToggle"] span {{ border-color: var(--input); }}
 .stApp code {{ background: var(--secondary); color: var(--brand-sky); }}
 .st-key-marca img {{ filter: drop-shadow(0 6px 16px rgb(0 0 0 / .45)); }}
+.stApp .stDownloadButton button, .stApp [data-testid="stBaseButton-primary"] {{ background: var(--brand-solid) !important; border-color: var(--brand-solid) !important; color: #fff !important; }}
+.stApp .stDownloadButton button:hover {{ background: var(--brand) !important; }}
+[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{ background: color-mix(in oklab, var(--brand) 30%, var(--card)) !important;
+  border-color: var(--brand) !important; color: #fff !important; }}
+[data-testid="stSidebar"] .stButton button {{ background: var(--secondary) !important; }}
+.stApp .st-key-pg .stButton button {{ background: var(--brand-solid) !important; color: #fff !important; }}
+.stApp .st-key-abas button {{ background: transparent !important; color: rgb(255 255 255 / .86) !important; border: 1px solid rgb(255 255 255 / .18) !important; }}
+.stApp .st-key-abas button:hover {{ background: rgb(255 255 255 / .1) !important; }}
+.stApp .st-key-envio button {{ background: var(--tab-ativa) !important; color: var(--tab-ativa-txt) !important; }}
+.stApp button [data-testid="stMarkdownContainer"], .stApp button [data-testid="stMarkdownContainer"] p {{ color: inherit !important; }}
+[data-testid="stExpandSidebarButton"] {{ background: var(--card) !important; border-color: var(--input) !important; }}
 .lb-onda {{ background-image: {_onda("#60a5fa", .25, 14)}, {_onda("#38bdf8", .2, 9)}; }}
 """
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
