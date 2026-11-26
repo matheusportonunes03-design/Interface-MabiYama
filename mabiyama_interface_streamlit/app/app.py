@@ -19,6 +19,7 @@ import streamlit.components.v1 as components
 
 import painel_dados
 import paginas
+import tema
 
 RAIZ = Path(__file__).resolve().parent
 DADOS = RAIZ / "dados"
@@ -167,6 +168,7 @@ h1, h2, h3 {{ padding: 0 !important; margin: 0; }}
 .stApp .stButton button p, .stApp [data-testid="stFormSubmitButton"] button p, .stApp [data-testid="stPopover"] button p {{ font-size: .875rem; font-weight: inherit; }}
 .stApp p.status {{ margin: 1rem 0 0; border-radius: 6px; background: var(--secondary); padding: .75rem; font-size: .875rem !important; line-height: 1.25rem; }}
 </style>""", unsafe_allow_html=True)
+    tema.css_tema()
 
 
 def aplicar(regras: dict):
@@ -360,8 +362,8 @@ def conteudo_painel(aba, filtros):
     d = dict(dados_painel(st.session_state.get("previsao")))
     if aba == "eda":
         d["graficos"] = graficos()
-    pagina = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}</style></head>
+    pagina = f"""<!doctype html><html lang="pt-BR" class="{tema.classe_html()}"><head><meta charset="utf-8">
+<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
 <body><div id="root"></div>
 <script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};
 window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k in ("replay", "raiox")} if aba == "model" else {}, ensure_ascii=False)};</script>
@@ -369,15 +371,60 @@ window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k in ("replay", 
     components.html(pagina, height=2900 if aba == "model" else 1500, scrolling=False)
 
 
+CENARIOS = {
+    "Padrão": dict(lim=30, cap=6, margem=8, horas=8, custoAnt=400, efic=0.9),
+    "Conservador (premissas pessimistas)": dict(lim=40, cap=4, margem=4, horas=4, custoAnt=1200, efic=0.75),
+    "Otimista (parada cara)": dict(lim=20, cap=8, margem=15, horas=12, custoAnt=300, efic=0.95),
+    "Equipe enxuta (2 por dia)": dict(lim=50, cap=2, margem=8, horas=8, custoAnt=400, efic=0.9),
+    "Sem limite de equipe": dict(lim=10, cap=20, margem=8, horas=8, custoAnt=400, efic=0.9),
+}
+PERIODOS = {"Tudo": None, "jan–mar": ("2022-12-31", "2023-03-31"), "abr–jun": ("2023-04-01", "2023-06-30"), "jul–set": ("2023-07-01", "2023-09-30")}
+
+
+def _recorte_sim(replay: dict, periodo, pecas, linhas) -> dict:
+    """Filtra o replay da validação por período, peças e linhas de produção (o simulador recebe só o recorte)."""
+    ip = {p: i for i, p in enumerate(replay["pecas"])}
+    okp = {ip[p[-1]] for p in pecas} if pecas else set(range(4))
+    okm = {i for i, m in enumerate(replay["maquinas"]) if not linhas or m["linha"] in linhas}
+    a, b = PERIODOS[periodo] or ("0000", "9999")
+    dias, por = [], []
+    for d, x in zip(replay["dias"], replay["porDia"]):
+        if a <= d <= b:
+            dias.append(d)
+            por.append({"c": [e for e in x["c"] if e[1] in okp and e[0] in okm], "f": [e for e in x["f"] if e[1] in okp and e[0] in okm]})
+    return {**replay, "dias": dias, "porDia": por}
+
+
 def pagina_simulador():
     ex = extras()
     if not ex:
         st.warning("Arquivo dados/extras.json não encontrado.")
         return
-    pagina = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}</style></head>
+    R = ex["replay"]
+    with st.sidebar:
+        tema.secao("Simulador")
+        cen = st.selectbox("Cenário pronto", list(CENARIOS), key="sim_cen",
+                           help="Define o ponto de partida dos controles do simulador (limiar, equipe e premissas de custo).")
+        st.segmented_control("Período de 2023", list(PERIODOS), key="sim_per", default="Tudo")
+        st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="sim_pecas")
+        linhas = sorted({m["linha"] for m in R["maquinas"]})
+        st.multiselect("Linhas de produção", linhas, key="sim_linhas", placeholder="Todas as linhas")
+        runs = st.select_slider("Cenários de Monte Carlo", [200, 500, 1000, 2000], value=500, key="sim_runs")
+        per = st.session_state.get("sim_per") or "Tudo"
+        rec = _recorte_sim(R, per, st.session_state.get("sim_pecas") or [], st.session_state.get("sim_linhas") or [])
+        nf = sum(sum(e[3] for e in d["c"]) + len(d["f"]) for d in rec["porDia"])
+        nc = sum(len(d["c"]) for d in rec["porDia"])
+        st.markdown(f'<div class="lb-info">Recorte: <b>{len(rec["dias"])} dias</b> · <b>{nf} falhas</b> · '
+                    f'{nc:,} peças na janela de risco</div>'.replace(",", "."), unsafe_allow_html=True)
+    if not rec["dias"] or nf == 0:
+        st.info("O recorte escolhido na barra lateral não tem falhas. Amplie o período, as peças ou as linhas.")
+        return
+    dados = {"replay": rec, "simul": ex["simul"]}
+    pagina = f"""<!doctype html><html lang="pt-BR" class="{tema.classe_html()}"><head><meta charset="utf-8">
+<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
 <body><div id="root"></div>
-<script>window.EXTRAS={json.dumps({k: ex[k] for k in ("replay", "simul")}, ensure_ascii=False)};</script>
+<script>window.EXTRAS={json.dumps(dados, ensure_ascii=False)};window.INICIAL={json.dumps(CENARIOS[cen])};window.RUNS={runs};
+window.CENARIO={json.dumps(cen, ensure_ascii=False)};</script>
 <script>{recurso("vendor.js")}</script><script>{recurso("simulador.js")}</script></body></html>"""
     components.html(pagina, height=1900, scrolling=False)
 
@@ -410,25 +457,19 @@ def barra_lateral(d, aba):
     for k, v in FILTROS_PADRAO.items():
         st.session_state.setdefault(k, v)
     with st.sidebar:
-        st.markdown(f"""<div class="lb-marca"><p class="eyebrow" style="opacity:.85;font-size:.625rem">Manutenção preditiva</p>
-          <p style="font-weight:800;font-style:italic;font-size:1.25rem">MaBiYama</p>
-          <p style="font-size:.8125rem;opacity:.9;margin-top:.25rem">{u["nome"]}</p></div>""", unsafe_allow_html=True)
-
-        st.markdown('<p class="lb-sec">Navegação</p>', unsafe_allow_html=True)
+        tema.marca_lateral(u["nome"])
+        tema.secao("Navegação")
         opcoes = ABAS
-        escolha = st.radio("Ir para", list(opcoes), format_func=opcoes.get, index=list(opcoes).index(aba),
-                           label_visibility="collapsed", key=f"nav_{aba}")
+        with st.container(key="navbox"):
+            escolha = st.radio("Ir para", list(opcoes), format_func=opcoes.get, index=list(opcoes).index(aba),
+                               label_visibility="collapsed", key=f"nav_{aba}")
         if escolha != aba:
             st.session_state.aba = escolha
             st.rerun()
         if aba in ("perfil", "maquinas", "dados", "sim"):
-            st.markdown('<div style="height:.5rem"></div>', unsafe_allow_html=True)
-            if st.button("Sair da conta", key="lb_sair", width="stretch"):
-                st.session_state.clear()
-                st.rerun()
             return None
 
-        st.markdown('<p class="lb-sec">Previsão</p>', unsafe_allow_html=True)
+        tema.secao("Previsão")
         dias = d["dias"]
         idia = st.selectbox("Dia (até 06:00 de)", range(len(dias)), format_func=lambda i: dias[i]["fimLongo"], key="f_dia")
         st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="f_pecas")
@@ -447,7 +488,7 @@ def barra_lateral(d, aba):
         st.button("Limpar filtros", key="limpar", width="stretch", on_click=lambda: st.session_state.update(FILTROS_PADRAO))
 
         if aba == "eda":
-            st.markdown('<p class="lb-sec">Análise exploratória</p>', unsafe_allow_html=True)
+            tema.secao("Análise exploratória")
             temas = list(dict.fromkeys(g["grupo"] for g in graficos()))
             st.multiselect("Temas", temas, key="f_grupos", placeholder="Todos os temas")
             st.toggle("Abrir todos os insights", key="f_expandir")
@@ -455,14 +496,11 @@ def barra_lateral(d, aba):
 
         k = d["kpi"]
         fonte = "arquivo enviado nesta sessão" if st.session_state.get("previsao") else "melhor submissão do time"
-        st.markdown(f"""<p class="lb-sec">Sobre o modelo</p><div class="lb-sobre">
+        tema.secao("Sobre o modelo")
+        st.markdown(f"""<div class="lb-sobre">
           Previsão em uso: <b>{fonte}</b><br>AUC-PR na validação: <b>{k["ap"]}</b><br>
           Kaggle público: <b>{k["apKaggle"]}</b><br>Horizonte: <b>{len(dias)} dias</b> · {k["maquinas"]} máquinas</div>""",
                     unsafe_allow_html=True)
-        st.markdown('<div style="height:.25rem"></div>', unsafe_allow_html=True)
-        if st.button("Sair da conta", key="lb_sair", width="stretch"):
-            st.session_state.clear()
-            st.rerun()
     return f
 
 
@@ -548,7 +586,9 @@ def tela_perfil():
                         unsafe_allow_html=True)
         with st.container(key="pf_sair_box"):
             if st.button("Sair da conta", key="pf_sair"):
+                t = st.session_state.get("tema", "claro")
                 st.session_state.clear()
+                st.session_state.tema = t
                 st.rerun()
 
 
@@ -562,6 +602,7 @@ def main():
     filtros = barra_lateral(dados_painel(st.session_state.get("previsao")), aba)
     if aba == "perfil":
         tela_perfil()
+        tema.rodape_lateral()
         return
     cabecalho_painel(aba)
     if aba == "dados":
@@ -576,6 +617,7 @@ def main():
         paginas.pagina_maquina(sub, prob)
     else:
         conteudo_painel(aba, filtros)
+    tema.rodape_lateral()
 
 
 main()

@@ -126,14 +126,14 @@ function monteCarlo(P, seed) {
   }
   const crono = [...Array(N).keys()];
   const series = [];
-  for (let k = 0; k < 120; k++) series.push(rodada(crono, true).serie);
+  for (let k = 0; k < Math.min(200, Math.max(80, RUNS / 4)); k++) series.push(rodada(crono, true).serie);
   const banda = crono.map((i) => {
     const g = series.map((s) => s[i][0]), a = series.map((s) => s[i][1]), m = series.map((s) => s[i][2]);
     const media = (v) => v.reduce((x, y) => x + y, 0) / v.length;
     return { dia: R.dias[i].slice(5).split("-").reverse().join("/"), grade: media(g), acaso: media(a), modelo: media(m), faixa: [pctl(m, 0.1), pctl(m, 0.9)] };
   });
   const eco = [], ecoA = [], evit = [];
-  for (let k = 0; k < 500; k++) {
+  for (let k = 0; k < RUNS; k++) {
     const ordem = Array.from({ length: N }, () => Math.floor(r() * N));
     const { tot } = rodada(ordem, false);
     eco.push(tot.grade - tot.modelo); ecoA.push(tot.grade - tot.acaso); evit.push(tot.evit);
@@ -164,7 +164,8 @@ function Controle({ rotulo, valor, txt, min, max, step, onChange, ajuda }) {
     ${ajuda && html`<small>${ajuda}</small>`}</div>`;
 }
 
-const PADRAO = { lim: 30, cap: 6, margem: 8, horas: 8, custoAnt: 400, efic: 0.9 };
+const PADRAO = window.INICIAL || { lim: 30, cap: 6, margem: 8, horas: 8, custoAnt: 400, efic: 0.9 };
+const RUNS = window.RUNS || 500;
 
 function Simulador() {
   const [P, setP] = useState(PADRAO);
@@ -204,7 +205,7 @@ function Simulador() {
 
   return html`<div class="sm-wrap">
     <section class="sm-hero">
-      <div><span class="sm-eyebrow">Gêmeo digital da manutenção</span>
+      <div><span class="sm-eyebrow">Gêmeo digital da manutenção · cenário ${window.CENARIO || "Padrão"}</span>
         <h2>E se a fábrica tivesse seguido o modelo?</h2>
         <p>Escolha uma política e as premissas de custo. O simulador repete os ${Math.round(MESES)} meses de 2023 da validação temporal, com as falhas reais e
           as probabilidades que o modelo deu às 05:00 de cada dia, e roda ${mc.eco.length} cenários de Monte Carlo para mostrar a incerteza.</p></div>

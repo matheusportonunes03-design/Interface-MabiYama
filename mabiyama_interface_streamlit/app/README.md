@@ -112,3 +112,14 @@ falhas reais são conhecidas (as do teste do Kaggle são ocultas).
 
 Para regenerar: `python ferramentas/oof_g2.py` e `python ferramentas/gerar_extras.py` (ajuste os caminhos no topo dos scripts:
 pasta dos CSV tratados e pasta `resultados/` do notebook da Etapa 4).
+
+## Aparência, marca e barra lateral por aba
+
+- `tema.py`: logo da MaBiYama sem fundo (`frontend/marca/logo_claro.webp` e `logo_escuro.webp`, esta com o roxo e o azul clareados
+  para fundo escuro), navegação com ícones e marcador âmbar, ondas animadas no cabeçalho e na barra lateral, e o **modo claro/escuro**
+  (no fim da barra lateral). O tema escuro troca as variáveis de cor do app e das páginas em iframe; tabelas e gráficos Altair também mudam.
+- **Dados tratados**: ordenar por coluna, ir para uma linha, para uma coluna ou para uma célula (o valor aparece na barra lateral e a célula
+  fica destacada), buscar um valor em todas as colunas ou numa só (com ◀ ▶ entre as ocorrências), ir ao topo ou ao fim, e ver a linha inteira.
+- **Máquinas**: ordenar a frota (maior risco, mais falhas, código), filtrar por linha e modelo, escolher a máquina, ◀ anterior / próxima ▶,
+  atalhos para as de maior risco, peça e resolução do sensor e download do histórico da máquina.
+- **Simulador**: cenários prontos de premissas, período de 2023, peças, linhas de produção e número de cenários de Monte Carlo.
