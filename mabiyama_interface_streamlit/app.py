@@ -359,7 +359,7 @@ def conteudo_painel(aba, filtros):
 
 # ------------------------------------------------------------------ barra lateral
 PECAS_NOMES = ["Peça A", "Peça B", "Peça C", "Peça D"]
-ABAS = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "maquinas": "Máquinas", "dados": "Dados tratados", "perfil": "Perfil"}
+ABAS = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "maquinas": "Simulação", "dados": "Dados tratados", "perfil": "Perfil"}
 FILTROS_PADRAO = {"f_pecas": [], "f_modelos": [], "f_risco": 0, "f_busca": "", "f_grupos": [], "f_expandir": False}
 
 
