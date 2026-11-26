@@ -97,3 +97,18 @@ As bases ficam em `dados/tratados/*.parquet` (cerca de 22 MB) e são geradas por
 ## Barra lateral
 
 Ao fechar a barra lateral, aparece o botão **Menu** no canto superior esquerdo, que a abre de novo.
+
+## Replay da frota, Raio-X da falha e Simulador
+
+Os três usam `dados/extras.json`, gerado a partir da **validação temporal** (31/12/2022 a 29/09/2023), o único período em que as
+falhas reais são conhecidas (as do teste do Kaggle são ocultas).
+
+- **Replay da frota** (aba Previsão & Modelagem, abaixo dos indicadores): mapa da planta por linha de produção; a cor de cada peça é o
+  risco que o modelo (fusão g2) deu às 05:00; falhas reais pulsam em verde (estava no top-10 do dia) ou vermelho (escapou).
+- **Raio-X da falha** (mesma aba, no fim): 4 casos reais animados hora a hora: sensor da peça, janela de 96 h do filtro casado e a evidência
+  convertida em probabilidade (razão de verossimilhança × taxa base do ciclo), comparada com a probabilidade final do modelo.
+- **Simulador** (aba própria): política "antecipar a preventiva" por limiar de risco e capacidade diária, com premissas de custo ajustáveis;
+  Monte Carlo (durações de parada Gama, eficácia Bernoulli, dias reamostrados), curva custo × limiar e mapa de decisão.
+
+Para regenerar: `python ferramentas/oof_g2.py` e `python ferramentas/gerar_extras.py` (ajuste os caminhos no topo dos scripts:
+pasta dos CSV tratados e pasta `resultados/` do notebook da Etapa 4).

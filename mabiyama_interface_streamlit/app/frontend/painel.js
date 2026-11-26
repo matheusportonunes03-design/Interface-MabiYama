@@ -112,6 +112,7 @@ function Modelagem({ dia }) {
       <${Kpi} icone="cpu" label="Última previsão" value="05:00" sub=${`${dia.execCurto} · ${k.pares} pares máquina×peça`} accent="border-l-brand-sky" target="execucao"
         detail=${`Execução às 05:00 de ${dia.execCurto}, avaliando quatro peças em cada uma das ${k.maquinas} máquinas. A previsão considera a janela até 06:00 do dia seguinte.`} />
     </div>
+    ${window.Replay && html`<${window.Replay} />`}
     <div class="grid gap-5 lg:grid-cols-5">
       <${Cartao} id="prioridades" title="Prioridade de manutenção · hoje" accent="border-l-violet" className="lg:col-span-3 bg-violet-soft/40">
         ${rf && html`<p class="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><${Icone} nome="filter" className="h-3.5 w-3.5" />
@@ -171,6 +172,7 @@ function Modelagem({ dia }) {
         </div>
       <//>
     </div>
+    ${window.RaioX && html`<${window.RaioX} />`}
     <section id="execucao" tabIndex="-1" class="scroll-mt-6 border-t border-border py-4">
       <h3 class="font-extrabold">Resumo da última previsão</h3>
       <dl class="mt-3 grid gap-4 sm:grid-cols-3">

@@ -39,6 +39,17 @@ def recurso(nome: str) -> str:
     return _recurso(nome, (FRONT / nome).stat().st_mtime_ns)
 
 
+@st.cache_resource
+def _extras(versao: int) -> dict:
+    return json.loads((DADOS / "extras.json").read_text(encoding="utf-8"))
+
+
+def extras() -> dict:
+    """Replay, raio-X e simulador (dados/extras.json, gerado a partir da validação temporal)."""
+    f = DADOS / "extras.json"
+    return _extras(f.stat().st_mtime_ns) if f.exists() else {}
+
+
 def svg_uri(svg: str) -> str:
     from urllib.parse import quote
     return "data:image/svg+xml," + quote(svg)
@@ -352,14 +363,28 @@ def conteudo_painel(aba, filtros):
     pagina = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}</style></head>
 <body><div id="root"></div>
-<script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};</script>
-<script>{recurso("vendor.js")}</script><script>{recurso("painel.js")}</script></body></html>"""
-    components.html(pagina, height=1450 if aba == "model" else 1500, scrolling=False)
+<script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};
+window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k in ("replay", "raiox")} if aba == "model" else {}, ensure_ascii=False)};</script>
+<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("painel.js")}</script></body></html>"""
+    components.html(pagina, height=2900 if aba == "model" else 1500, scrolling=False)
+
+
+def pagina_simulador():
+    ex = extras()
+    if not ex:
+        st.warning("Arquivo dados/extras.json não encontrado.")
+        return
+    pagina = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}</style></head>
+<body><div id="root"></div>
+<script>window.EXTRAS={json.dumps({k: ex[k] for k in ("replay", "simul")}, ensure_ascii=False)};</script>
+<script>{recurso("vendor.js")}</script><script>{recurso("simulador.js")}</script></body></html>"""
+    components.html(pagina, height=1900, scrolling=False)
 
 
 # ------------------------------------------------------------------ barra lateral
 PECAS_NOMES = ["Peça A", "Peça B", "Peça C", "Peça D"]
-ABAS = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "maquinas": "Máquinas", "dados": "Dados tratados", "perfil": "Perfil"}
+ABAS = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "sim": "Simulador", "maquinas": "Máquinas", "dados": "Dados tratados", "perfil": "Perfil"}
 FILTROS_PADRAO = {"f_pecas": [], "f_modelos": [], "f_risco": 0, "f_busca": "", "f_grupos": [], "f_expandir": False}
 
 
@@ -396,7 +421,7 @@ def barra_lateral(d, aba):
         if escolha != aba:
             st.session_state.aba = escolha
             st.rerun()
-        if aba in ("perfil", "maquinas", "dados"):
+        if aba in ("perfil", "maquinas", "dados", "sim"):
             st.markdown('<div style="height:.5rem"></div>', unsafe_allow_html=True)
             if st.button("Sair da conta", key="lb_sair", width="stretch"):
                 st.session_state.clear()
@@ -541,6 +566,8 @@ def main():
     cabecalho_painel(aba)
     if aba == "dados":
         paginas.pagina_dados()
+    elif aba == "sim":
+        pagina_simulador()
     elif aba == "maquinas":
         prev = st.session_state.get("previsao")
         sub = pd.read_csv(io.BytesIO(prev)) if prev else pd.read_csv(DADOS / "previsao.csv")
