@@ -44,7 +44,7 @@ python preparar_dados.py --bases <pasta com as bases tratadas>
 Vindos do modelo:
 | arquivo | conteúdo |
 |---|---|
-| previsao.csv | previsão no formato da submissão (hoje a y01, Kaggle 0,69146). Pode ser trocada pelo botão "Enviar dados do dia". |
+| previsao.csv | previsão no formato da submissão (hoje a g2, Kaggle 0,70769: fusão "3 melhores posições" de y09 + v2 + membros A–E). Pode ser trocada pelo botão "Enviar dados do dia". |
 | validacao.csv | escores fora da amostra da sub 37, rodada nas bases tratadas, nas 3 janelas de validação temporal |
 | importancia.csv | importância das variáveis do ExtraTrees "hat" da sub 37, treinado nas bases tratadas |
 
@@ -68,3 +68,32 @@ Vindos do modelo:
 
 `dados/eda/` traz os 23 gráficos do notebook da Etapa 3 (WebP) e `graficos.json`, com título, tema e o parágrafo de
 insight de cada um. Para trocar um gráfico, substitua o `.webp` com o mesmo nome; para mudar o texto, edite o JSON.
+
+## Aba "Máquinas" (ficha da máquina)
+
+Escolha uma máquina para ver:
+- **Cadastro:** modelo, idade, fabricante, planta, linha e potência.
+- **Risco previsto no período de teste:** cada círculo é um dia de grade da peça; o tamanho e o número mostram a probabilidade de falha.
+- **Histórico:** falhas por peça, última preventiva e próxima data de grade de cada peça, erros por código.
+- **Sensores:** leitura horária ou média diária do sensor da peça, com falhas, preventivas e corretivas marcadas. Por padrão, o período mostrado são as 4 semanas em volta da última falha da peça.
+
+## Aba "Dados tratados"
+
+Explorador das 7 bases tratadas completas: telemetria, base integrada, operação, manutenção, erros, falhas e máquinas.
+- **Filtros:** máquina, período e colunas.
+- **Indicadores do recorte:** linhas, colunas, máquinas e período.
+- **Dicionário de colunas:** tipo, % de vazios e faixa de valores de cada coluna.
+- **O que foi tratado:** o trecho do relatório de qualidade do ETL referente à tabela.
+- **Download:** CSV do recorte (com `;` e vírgula decimal, abre direto no Excel), até 300 mil linhas.
+
+As bases ficam em `dados/tratados/*.parquet` (cerca de 22 MB) e são geradas por:
+
+    python preparar_dados.py --bases <pasta com as bases tratadas> --so-tabelas
+
+(`--tabelas` gera também os resumos do painel.)
+
+> **Atenção:** são as bases da competição. Mantenha o repositório **privado**, porque divulgar os dados pode ferir as regras do Kaggle. O Streamlit Cloud funciona normalmente com repositório privado.
+
+## Barra lateral
+
+Ao fechar a barra lateral, aparece o botão **Menu** no canto superior esquerdo, que a abre de novo.

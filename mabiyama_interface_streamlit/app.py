@@ -18,6 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import painel_dados
+import paginas
 
 RAIZ = Path(__file__).resolve().parent
 DADOS = RAIZ / "dados"
@@ -86,11 +87,16 @@ def css_base():
 html, body, .stApp, .stApp * {{ font-family: "Nunito", system-ui, sans-serif; }}
 .stApp [data-testid="stIconMaterial"], .stApp .material-symbols-rounded {{ font-family: "Material Symbols Rounded" !important; }}
 .stApp {{ background: var(--background); color: var(--foreground); }}
-[data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-#MainMenu, footer, .stDeployButton {{ display: none !important; }}
+[data-testid="stDecoration"], [data-testid="stStatusWidget"], [data-testid="stToolbarActions"], [data-testid="stMainMenu"],
+[data-testid="stAppDeployButton"], #MainMenu, footer, .stDeployButton {{ display: none !important; }}
+[data-testid="stToolbar"] {{ background: transparent !important; pointer-events: none; }}
+[data-testid="stToolbar"] [data-testid="stExpandSidebarButton"] {{ pointer-events: auto; }}
 header[data-testid="stHeader"] {{ background: transparent !important; height: 0 !important; min-height: 0 !important; }}
-[data-testid="stExpandSidebarButton"] {{ position: fixed; top: .75rem; left: .75rem; z-index: 999990; background: var(--card) !important;
-  border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 1px 3px rgb(0 0 0 / .12); color: var(--brand-deep); }}
+[data-testid="stExpandSidebarButton"] {{ position: fixed !important; top: .75rem; left: .75rem; z-index: 999990; display: inline-flex !important;
+  align-items: center; gap: .375rem; height: 2.25rem; padding: 0 .75rem 0 .5rem !important; background: var(--card) !important;
+  border: 1px solid var(--border) !important; border-radius: 8px; box-shadow: 0 2px 6px rgb(0 0 0 / .18); color: var(--brand-deep) !important; }}
+[data-testid="stExpandSidebarButton"]::after {{ content: "Menu"; font-weight: 700; font-size: .8125rem; }}
+[data-testid="stExpandSidebarButton"]:hover {{ background: var(--accent) !important; }}
 
 /* barra lateral */
 [data-testid="stSidebar"] {{ background: var(--card) !important; border-right: 1px solid var(--border); }}
@@ -333,7 +339,7 @@ def cabecalho_painel(aba):
                         st.session_state.previsao = None
                         st.rerun()
         with st.container(key="abas", horizontal=True):
-            for k, rotulo in [("model", "Previsão & Modelagem"), ("eda", "Análise Exploratória"), ("perfil", "Perfil")]:
+            for k, rotulo in [(k, v) for k, v in ABAS.items() if k != "perfil"] + [("perfil", "Perfil")]:
                 if st.button(rotulo, key=f"aba_{k}"):
                     st.session_state.aba = k
                     st.rerun()
@@ -353,6 +359,7 @@ def conteudo_painel(aba, filtros):
 
 # ------------------------------------------------------------------ barra lateral
 PECAS_NOMES = ["Peça A", "Peça B", "Peça C", "Peça D"]
+ABAS = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "maquinas": "Máquinas", "dados": "Dados tratados", "perfil": "Perfil"}
 FILTROS_PADRAO = {"f_pecas": [], "f_modelos": [], "f_risco": 0, "f_busca": "", "f_grupos": [], "f_expandir": False}
 
 
@@ -383,13 +390,17 @@ def barra_lateral(d, aba):
           <p style="font-size:.8125rem;opacity:.9;margin-top:.25rem">{u["nome"]}</p></div>""", unsafe_allow_html=True)
 
         st.markdown('<p class="lb-sec">Navegação</p>', unsafe_allow_html=True)
-        opcoes = {"model": "Previsão & Modelagem", "eda": "Análise Exploratória", "perfil": "Perfil"}
+        opcoes = ABAS
         escolha = st.radio("Ir para", list(opcoes), format_func=opcoes.get, index=list(opcoes).index(aba),
                            label_visibility="collapsed", key=f"nav_{aba}")
         if escolha != aba:
             st.session_state.aba = escolha
             st.rerun()
-        if aba == "perfil":
+        if aba in ("perfil", "maquinas", "dados"):
+            st.markdown('<div style="height:.5rem"></div>', unsafe_allow_html=True)
+            if st.button("Sair da conta", key="lb_sair", width="stretch"):
+                st.session_state.clear()
+                st.rerun()
             return None
 
         st.markdown('<p class="lb-sec">Previsão</p>', unsafe_allow_html=True)
@@ -528,7 +539,16 @@ def main():
         tela_perfil()
         return
     cabecalho_painel(aba)
-    conteudo_painel(aba, filtros)
+    if aba == "dados":
+        paginas.pagina_dados()
+    elif aba == "maquinas":
+        prev = st.session_state.get("previsao")
+        sub = pd.read_csv(io.BytesIO(prev)) if prev else pd.read_csv(DADOS / "previsao.csv")
+        d = dados_painel(prev)
+        prob = {(e["machine"], "peca_" + e["comp"][-1], dd["fimLongo"]): e["prob"] for dd in d["dias"] for e in dd.get("lista", [])}
+        paginas.pagina_maquina(sub, prob)
+    else:
+        conteudo_painel(aba, filtros)
 
 
 main()

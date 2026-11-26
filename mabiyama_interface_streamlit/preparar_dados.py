@@ -27,11 +27,37 @@ def ler(pasta, nome, datas=()):
     return pd.read_csv(Path(pasta) / nome, encoding="utf-8-sig", parse_dates=list(datas))
 
 
+TABELAS_COMPLETAS = ["maquinas_corrigido", "falhas_corrigido", "manutencao_corrigido", "erros_corrigido", "operacao_corrigido",
+                     "base_integrada_maquina_dia", "telemetria_corrigido"]
+
+
+def exportar_tabelas(bases, destino):
+    """Bases tratadas completas em Parquet (zstd, float32): ~23 MB no total, lidas pela aba 'Dados tratados' e pela ficha da máquina."""
+    destino = Path(destino)
+    destino.mkdir(parents=True, exist_ok=True)
+    for nome in TABELAS_COMPLETAS:
+        d = pd.read_csv(Path(bases) / f"{nome}.csv", encoding="utf-8-sig")
+        for c in d.columns:
+            if d[c].dtype == "float64":
+                d[c] = d[c].astype("float32")
+        d.to_parquet(destino / f"{nome}.parquet", compression="zstd", index=False)
+        print(f"{nome}: {d.shape[0]} linhas -> {destino / (nome + '.parquet')}")
+    rel = Path(bases) / "relatorio_qualidade.md"
+    if rel.exists():
+        (destino / "relatorio_qualidade.md").write_text(rel.read_text(encoding="utf-8"), encoding="utf-8")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--bases", required=True)
     ap.add_argument("--saida", default=str(Path(__file__).resolve().parent / "dados"))
+    ap.add_argument("--tabelas", action="store_true", help="também grava as bases tratadas completas em dados/tratados/ (aba Dados tratados)")
+    ap.add_argument("--so-tabelas", action="store_true", help="grava só as bases completas, sem refazer os resumos")
     a = ap.parse_args()
+    if a.tabelas or a.so_tabelas:
+        exportar_tabelas(a.bases, Path(a.saida) / "tratados")
+        if a.so_tabelas:
+            return
     out = Path(a.saida)
     out.mkdir(parents=True, exist_ok=True)
 
