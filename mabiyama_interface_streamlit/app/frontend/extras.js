@@ -23,6 +23,29 @@
   @media (min-width:1024px){.xp-grid{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr)}}
   .xp-mapa{position:relative;border-radius:.75rem;background:linear-gradient(180deg,color-mix(in oklab,var(--brand-sky) 12%,var(--card)),var(--card));border:1px solid var(--border);padding:.5rem .5rem .25rem}
   .xp-mapa svg{display:block;width:100%;height:auto}
+  .xr-rede{position:relative;display:flex;flex-direction:column;gap:6px;padding:26px 4px 8px 46px;border-radius:.6rem;
+    background-image:radial-gradient(circle at 1px 1px,color-mix(in oklab,var(--muted-foreground) 22%,transparent) 1px,transparent 0);background-size:18px 18px}
+  .xr-cap{position:absolute;top:4px;left:8px;margin:0;font-size:11px;color:var(--muted-foreground)}
+  .xr-adutora{position:absolute;left:12px;top:30px;bottom:14px;width:16px;border-radius:8px;background-color:color-mix(in oklab,var(--brand) 72%,#0a1a3c);
+    background-image:repeating-linear-gradient(180deg,rgba(210,235,255,.55) 0 10px,transparent 10px 34px);animation:xrDesce 1.8s linear infinite}
+  .xr-linha{position:relative;display:flex;align-items:center;gap:8px;height:50px}
+  .xr-ramal{position:absolute;left:-26px;width:30px;top:19px;height:12px;background:color-mix(in oklab,var(--brand) 72%,#0a1a3c)}
+  .xr-nome{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--foreground);position:relative;z-index:1;background:var(--card);border:1.5px solid color-mix(in oklab,var(--brand) 45%,var(--border));border-radius:999px;padding:1px 7px;margin-left:-6px}
+  .xr-box{position:relative;flex:1;height:50px;display:flex;align-items:center;min-width:0}
+  .xr-cano{position:absolute;left:0;right:0;top:19px;height:12px;border-radius:6px;background-image:repeating-linear-gradient(90deg,rgba(220,238,255,.5) 0 12px,transparent 12px 36px);
+    animation:xrFluxo linear infinite;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+  .xr-bombas{position:relative;flex:1;display:flex;justify-content:space-between;padding:0 4px}
+  .xr-b{position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:default}
+  .xr-bomba{width:18px;height:18px;border-radius:50%;border:2px solid;box-sizing:border-box;transition:background .35s,box-shadow .35s}
+  .xr-pulso{position:absolute;inset:-1px;border-radius:50%;border:3px solid;animation:xrPulso 1.3s ease-out infinite}
+  .xr-gota{position:absolute;left:8px;top:22px;width:6px;height:8px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:var(--brand-sky);animation:xrGota 1.4s ease-in infinite}
+  .xr-rot{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:800;color:var(--foreground);
+    background:var(--card);border:1.5px solid;border-radius:6px;padding:0 5px;z-index:2;pointer-events:none}
+  @keyframes xrFluxo{to{background-position:72px 0}}
+  @keyframes xrDesce{to{background-position:0 68px}}
+  @keyframes xrPulso{0%{transform:scale(.85);opacity:.95}100%{transform:scale(2.5);opacity:0}}
+  @keyframes xrGota{0%{transform:translateY(0);opacity:0}25%{opacity:1}100%{transform:translateY(18px);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.xr-cano,.xr-adutora,.xr-pulso,.xr-gota{animation:none}}
   .xp-q{transition:fill .35s ease}
   .xp-dia{font-size:1.6rem;font-weight:800;line-height:1.1;color:var(--foreground)}
   .xp-mini{font-size:.7rem;color:var(--muted-foreground);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -42,6 +65,28 @@
   .xp-chips{display:flex;flex-wrap:wrap;gap:.4rem}
   .xp-svgwrap svg{display:block;width:100%;height:auto;overflow:visible}
   .xp-fade{transition:opacity .4s}
+  .xg-grid{display:grid;gap:1.25rem;grid-template-columns:repeat(1,minmax(0,1fr));align-items:start}
+  @media (min-width:640px){.xg-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (min-width:1024px){.xg-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .xg-card{border-radius:calc(var(--radius) + 6px);border:1px solid var(--border);background:var(--card);padding:1rem 1rem .9rem;box-shadow:var(--shadow-card);display:flex;flex-direction:column;gap:.7rem;min-width:0}
+  .xg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;min-height:2.3rem}
+  .xg-rot{font-size:.8rem;font-weight:800;color:var(--muted-foreground)}
+  .xg-est{font-size:.66rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+  .xg-tq{position:relative;height:172px;border-radius:22px 22px 26px 26px;overflow:hidden;border:2px solid color-mix(in oklab,var(--brand) 18%,var(--border));
+    background:linear-gradient(90deg,color-mix(in oklab,var(--brand-sky) 14%,var(--card)),var(--card) 45%,color-mix(in oklab,var(--brand-sky) 18%,var(--card)))}
+  .xg-agua{position:absolute;left:0;right:0;bottom:0;transition:height 1.2s cubic-bezier(.2,.8,.2,1)}
+  .xg-onda{position:absolute;left:0;width:200%;height:20px}
+  .xg-o1{top:-9px;animation:xgOnda 6s linear infinite}.xg-o2{top:-13px;animation:xgOnda 9s linear infinite reverse}
+  .xg-b{position:absolute;bottom:6px;border-radius:50%;background:rgba(255,255,255,.55);animation:xgBolha ease-in infinite}
+  .xg-esc{position:absolute;inset:10px auto 10px 10px;display:flex;flex-direction:column;justify-content:space-between;font-size:.6rem;font-weight:700;color:var(--muted-foreground);pointer-events:none}
+  .xg-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .xg-val b{font-size:2rem;font-weight:800;color:var(--foreground);background:color-mix(in oklab,var(--card) 84%,transparent);border-radius:.8rem;padding:.1rem .7rem;backdrop-filter:blur(2px)}
+  .xg-pe{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .xg-sub{font-size:.74rem;color:var(--muted-foreground);line-height:1.35;margin:0}
+  .xg-det{border-top:1px solid var(--border);padding-top:.7rem;font-size:.82rem;line-height:1.5;color:var(--muted-foreground)}
+  @keyframes xgOnda{to{transform:translateX(-50%)}}
+  @keyframes xgBolha{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-150px);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.xg-o1,.xg-o2,.xg-b{animation:none}}
   `;
   if (!document.getElementById("xp-css")) {
     const s = document.createElement("style"); s.id = "xp-css"; s.textContent = css; document.head.appendChild(s);
@@ -128,9 +173,6 @@
       R.maquinas.forEach((m, k) => { (g[m.linha] = g[m.linha] || []).push(k); });
       return Object.keys(g).sort().map((l) => ({ linha: l, maq: g[l] }));
     }, []);
-    const CEL = 34, GAP = 6, X0 = 46, Y0 = 26, LH = 58;
-    const maxN = Math.max(...linhas.map((l) => l.maq.length));
-    const W = X0 + maxN * (CEL + GAP) + 10, H = Y0 + linhas.length * LH + 6;
     const janelaDe = (k) => R.janelas.filter((a) => a <= R.dias[k]).length - 1;
     const irJanela = (j) => { const k = R.dias.findIndex((d) => d >= R.janelas[j]); setI(Math.max(0, k)); setRevelar(true); };
 
@@ -149,8 +191,8 @@
       <div class="xp-top">
         <div>
           <h3 class="xp-titulo">Replay da frota · o modelo contra os fatos</h3>
-          <p class="xp-sub">Cada quadrado é uma máquina, dividido nas peças A, B, C e D. A cor é o risco que o modelo calculou às 05:00 daquele dia,
-            antes de saber o que ia acontecer. Quando uma falha real ocorre, a máquina pulsa: <b>verde</b> se estava entre as ${TOP} prioridades do dia, <b>vermelho</b> se escapou.</p>
+          <p class="xp-sub">Cada linha de produção é um cano e cada máquina é uma bomba. A cor da bomba é o maior risco que o modelo calculou às 05:00 para as peças dela,
+            antes de saber o que ia acontecer; acima de 40% ela pinga. Quando uma falha real ocorre, a bomba pulsa: <b>verde</b> se estava entre as ${TOP} prioridades do dia, <b>vermelho</b> se escapou.</p>
         </div>
         <span class="xp-tag">Validação temporal · ${dataBR(R.dias[0])}/${R.dias[0].slice(0, 4)} a ${dataBR(R.dias[N - 1])}/${R.dias[N - 1].slice(0, 4)}</span>
       </div>
@@ -169,28 +211,37 @@
       </div>
       <div class="xp-grid">
         <div class="xp-mapa" ref=${ref} onMouseLeave=${() => setTip(null)}>
-          <svg viewBox=${`0 0 ${W} ${H}`} role="img" aria-label="Mapa de risco das máquinas por linha de produção">
-            ${linhas.map((l, r) => html`<g key=${l.linha}>
-              <rect x=${X0 - 8} y=${Y0 + r * LH - 6} width=${l.maq.length * (CEL + GAP) + 10} height=${CEL + 12} rx="8"
-                fill="color-mix(in oklab, var(--muted-foreground) 9%, transparent)" />
-              <line x1=${X0 - 8} x2=${X0 + l.maq.length * (CEL + GAP)} y1=${Y0 + r * LH + CEL + 10} y2=${Y0 + r * LH + CEL + 10}
-                stroke="var(--border)" stroke-width="2" stroke-dasharray="5 4" />
-              <text x="4" y=${Y0 + r * LH + CEL / 2 + 4} font-size="12" font-weight="800" fill="var(--muted-foreground)">${l.linha}</text>
-              ${l.maq.map((k, c) => {
-                const x = X0 + c * (CEL + GAP), y = Y0 + r * LH, q = (CEL - 3) / 2, f = falhaMaq[k];
-                const noTop = [0, 1, 2, 3].some((j) => st.top.has(k * 4 + j));
-                return html`<g key=${k} onMouseMove=${(e) => mostrarTip(e, k)} style=${{ cursor: "default" }}>
-                  ${noTop && html`<rect x=${x - 3} y=${y - 3} width=${CEL + 6} height=${CEL + 6} rx="7" fill="none" stroke="var(--violet)" stroke-width="2" />`}
-                  ${[0, 1, 2, 3].map((j) => html`<rect key=${j} class="xp-q" x=${x + (j % 2) * (q + 3)} y=${y + Math.floor(j / 2) * (q + 3)}
-                    width=${q} height=${q} rx="3" fill=${corRisco(risco[k * 4 + j])} />`)}
-                  ${f && html`<circle class="xp-pulso" cx=${x + CEL / 2} cy=${y + CEL / 2} r="9"
-                    stroke=${f.top ? "var(--success)" : "var(--chart-5)"} />`}
-                  ${f && html`<circle cx=${x + CEL / 2} cy=${y + CEL / 2} r="7" fill=${f.top ? "var(--success)" : "var(--chart-5)"} stroke="#fff" stroke-width="2" />`}
-                </g>`;
-              })}
-            </g>`)}
-            <text x=${X0 - 8} y="14" font-size="11" fill="var(--muted-foreground)">Planta SP-01 · ${R.maquinas.length} máquinas · moldura roxa = top-${TOP} do dia</text>
-          </svg>
+          <div class="xr-rede" role="img" aria-label="Rede hidráulica da planta: risco por máquina">
+            <p class="xr-cap">Planta SP-01 · ${R.maquinas.length} máquinas · anel roxo = top-${TOP} do dia · a água corre mais rápido nas linhas com risco</p>
+            <div class="xr-adutora" aria-hidden="true"></div>
+            ${linhas.map((l) => {
+              const ps = l.maq.map((k) => Math.max(-1, ...[0, 1, 2, 3].map((j) => risco[k * 4 + j] ?? -1)));
+              const mx = Math.max(...ps);
+              const tom = mx > 60 ? "var(--violet)" : mx >= 40 ? "var(--amber)" : "var(--brand)";
+              return html`<div class="xr-linha" key=${l.linha}>
+                <span class="xr-ramal" aria-hidden="true"></span>
+                <span class="xr-nome">${l.linha}</span>
+                <div class="xr-box">
+                  <span class="xr-cano" aria-hidden="true" style=${{ animationDuration: mx > 60 ? "0.9s" : mx >= 20 ? "1.7s" : "3.2s",
+                    backgroundColor: `color-mix(in oklab, ${tom} 72%, #0a1a3c)` }}></span>
+                  <div class="xr-bombas">
+                    ${l.maq.map((k, c) => {
+                      const p = ps[c], f = falhaMaq[k], fora = p < 0;
+                      const noTop = [0, 1, 2, 3].some((j) => st.top.has(k * 4 + j));
+                      return html`<span key=${k} class="xr-b" onMouseMove=${(e) => mostrarTip(e, k)}>
+                        ${f && html`<span class="xr-pulso" style=${{ borderColor: f.top ? "var(--success)" : "var(--chart-5)" }}></span>`}
+                        ${!fora && p >= 40 && html`<span class="xr-gota"></span>`}
+                        <span class="xr-bomba" style=${{ background: f ? (f.top ? "var(--success)" : "var(--chart-5)") : fora ? "var(--card)" : corRisco(p),
+                          borderColor: f ? "#fff" : fora ? "color-mix(in oklab, var(--muted-foreground) 55%, transparent)" : corRisco(p),
+                          boxShadow: noTop ? "0 0 0 2px var(--card), 0 0 0 4px var(--violet)" : "none" }}></span>
+                        ${!fora && p >= 40 && html`<span class="xr-rot" style=${{ borderColor: corRisco(p) }}>${R.maquinas[k].id} · ${p.toFixed(0)}%</span>`}
+                      </span>`;
+                    })}
+                  </div>
+                </div>
+              </div>`;
+            })}
+          </div>
           ${tip && html`<div class="xp-tip" style=${{ left: tip.x, top: tip.y }}>
             <b>${tip.m.id}</b> · modelo ${tip.m.modelo} · ${tip.m.linha}${tip.m.idade !== null ? ` · ${tip.m.idade} anos` : ""}<br/>
             ${tip.ps.length ? tip.ps.map((x) => html`<span key=${x[0]}>Peça ${x[0]}: <b>${x[1].toFixed(0)}%</b>  </span>`) : "Nenhuma peça na janela de risco hoje"}
@@ -198,7 +249,7 @@
           </div>`}
           <${Linha} acum=${acum} i=${i} N=${N} dias=${R.dias} ir=${(k) => { setRodando(false); setI(k); setRevelar(true); }} />
           <div class="xp-leg">
-            <span><i style=${{ background: corRisco(undefined) }}></i>fora da janela</span>
+            <span><i style=${{ background: "var(--card)", border: "2px solid color-mix(in oklab, var(--muted-foreground) 55%, transparent)", borderRadius: "50%" }}></i>fora da janela</span>
             <span><i style=${{ background: corRisco(2) }}></i>até 5%</span>
             <span><i style=${{ background: corRisco(10) }}></i>5–20%</span>
             <span><i style=${{ background: corRisco(30) }}></i>20–40%</span>
@@ -356,6 +407,38 @@
     </section>`;
   }
 
+  /* ================================================================== GALÕES (indicadores como reservatórios) */
+  function Galao({ label, value, sub, nivel, alerta, estado, detail, onIr }) {
+    const [aberto, setAberto] = useState(false);
+    const [n, setN] = useState(0);
+    useEffect(() => { const id = setTimeout(() => setN(nivel), 120); return () => clearTimeout(id); }, [nivel]);
+    const c = alerta
+      ? { agua: "linear-gradient(180deg, color-mix(in oklab, var(--amber) 80%, #fff), var(--amber))", o1: "var(--amber)",
+          o2: "color-mix(in oklab, var(--amber) 40%, var(--card))", vel: "2.3s", txt: "color-mix(in oklab, var(--amber) 70%, var(--foreground))" }
+      : { agua: "linear-gradient(180deg, var(--brand), var(--brand-deep))", o1: "var(--brand)",
+          o2: "color-mix(in oklab, var(--brand-sky) 70%, var(--card))", vel: "4.6s", txt: "var(--brand)" };
+    const Ic = window.Icone;
+    return html`<div class="xg-card">
+      <div class="xg-top"><span class="xg-rot">${label}</span><span class="xg-est" style=${{ color: c.txt }}>${estado}</span></div>
+      <div class="xg-tq" role="img" aria-label=${`${label}: ${value}`}>
+        <div class="xg-agua" style=${{ height: Math.max(4, Math.min(100, n)) + "%", background: c.agua }}>
+          <svg class="xg-onda xg-o2" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0 10 Q50 0 100 10 T200 10 T300 10 T400 10 V20 H0Z" fill=${c.o2} /></svg>
+          <svg class="xg-onda xg-o1" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true"><path d="M0 10 Q50 2 100 10 T200 10 T300 10 T400 10 V20 H0Z" fill=${c.o1} /></svg>
+          ${[[18, 7, 0], [55, 5, 1.6], [78, 6, 2.9]].map(([l, t, d]) => html`<span key=${l} class="xg-b" style=${{ left: l + "%", width: t, height: t, animationDelay: d + "s", animationDuration: c.vel }}></span>`)}
+        </div>
+        <div class="xg-esc"><span>100</span><span>50</span><span>0</span></div>
+        <div class="xg-val"><b>${value}</b></div>
+      </div>
+      <div class="xg-pe">
+        <p class="xg-sub">${sub}</p>
+        <button class="insight-btn" aria-expanded=${aberto} onClick=${() => setAberto(!aberto)}>${Ic && html`<${Ic} nome="lightbulb" className="h-4 w-4" />`}${aberto ? "Fechar" : "Insight"}</button>
+      </div>
+      ${aberto && html`<div class="xg-det"><p style=${{ margin: 0 }}>${detail}</p>
+        <button class="xp-btn" style=${{ marginTop: ".6rem" }} onClick=${onIr}>Ver insight principal →</button></div>`}
+    </div>`;
+  }
+
+  window.Galao = Galao;
   window.Replay = Replay;
   window.RaioX = RaioX;
 })();

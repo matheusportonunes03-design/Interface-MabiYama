@@ -123,3 +123,6 @@ pasta dos CSV tratados e pasta `resultados/` do notebook da Etapa 4).
 - **Máquinas**: ordenar a frota (maior risco, mais falhas, código), filtrar por linha e modelo, escolher a máquina, ◀ anterior / próxima ▶,
   atalhos para as de maior risco, peça e resolução do sensor e download do histórico da máquina.
 - **Simulador**: cenários prontos de premissas, período de 2023, peças, linhas de produção e número de cenários de Monte Carlo.
+- **Galões** (aba Previsão & Modelagem): os 4 indicadores viram reservatórios animados; o botão "Insight" abre a explicação e leva ao gráfico.
+- **Replay** no estilo rede hidráulica: linhas de produção como canos, máquinas como bombas (pingam acima de 40%).
+- **Tela de entrada "Maré"** e **cabeçalho com borda ondulada** (máscara CSS animada em `tema.py`).

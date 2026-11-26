@@ -100,7 +100,21 @@ function corBarra(p) { return p > 60 ? "bg-violet" : p > 40 ? "bg-amber" : "bg-b
 function Modelagem({ dia }) {
   const k = D.kpi;
   const rf = resumoFiltros();
+  const num = (t) => parseFloat(String(t).replace("%", "").replace(",", "."));
+  const maxAlto = Math.max(1, dia.altoRisco, ...D.dias.map((x) => (x.lista || []).filter((e) => e.prob > 50).length));
+  const G = window.Galao;
   return html`<div class="grid gap-5">
+    ${G ? html`<div class="xg-grid">
+      <${G} label="Peças em alto risco" value=${String(dia.altoRisco)} estado=${dia.altoRisco ? "atenção" : "tranquilo"} alerta=${dia.altoRisco > 0}
+        nivel=${(100 * dia.altoRisco) / maxAlto} sub=${`prob. > 50% até 06:00 · nível em relação ao pico do horizonte (${maxAlto})`} onIr=${() => irPara("prioridades")}
+        detail=${`${dia.altoRisco} pares máquina–peça apresentam risco acima de 50% para ${dia.fimCurto}. A lista ordena as prioridades de inspeção para a próxima janela de manutenção. O tanque enche até o pico de ${maxAlto} peças de um mesmo dia no horizonte.`} />
+      <${G} label="AUC-PR (validação temporal)" value=${k.ap} estado="estável" nivel=${num(k.ap) * 100} sub=${`Kaggle público: ${k.apKaggle}`} onIr=${() => irPara("desempenho")}
+        detail=${`AUC-PR (precisão média) resume precisão e recall, útil para falhas raras. Na validação temporal (3 janelas de 2023) o modelo fica em ${k.ap}, contra ${k.baseline} de uma escolha ao acaso. No Kaggle público a previsão atual marca ${k.apKaggle}.`} />
+      <${G} label="Recall @ top-20" value=${k.recall20} estado="cheio" nivel=${num(k.recall20)} sub="falhas capturadas na lista" onIr=${() => irPara("confusao")}
+        detail=${`Na validação, as 20 maiores prioridades de cada dia capturam ${k.recall20} das falhas. A matriz mostra acertos e erros no limiar de 0,5; é uma avaliação distinta do corte top-20.`} />
+      <${G} label="Última previsão" value="05:00" estado="em dia" nivel=${100} sub=${`${dia.execCurto} · ${k.pares} pares máquina×peça cobertos`} onIr=${() => irPara("execucao")}
+        detail=${`Execução às 05:00 de ${dia.execCurto}, avaliando quatro peças em cada uma das ${k.maquinas} máquinas. A previsão considera a janela até 06:00 do dia seguinte.`} />
+    </div>` : html`
     <div class="grid gap-5 md:grid-cols-4">
       <${Kpi} icone="triangle-alert" label="Peças em alto risco" value=${String(dia.altoRisco)} sub="prob. > 50% até 06:00 amanhã"
         accent="border-l-violet" target="prioridades"
@@ -111,7 +125,7 @@ function Modelagem({ dia }) {
         detail=${`Na validação, as 20 maiores prioridades de cada dia capturam ${k.recall20} das falhas. A matriz mostra acertos e erros no limiar de 0,5; é uma avaliação distinta do corte top-20.`} />
       <${Kpi} icone="cpu" label="Última previsão" value="05:00" sub=${`${dia.execCurto} · ${k.pares} pares máquina×peça`} accent="border-l-brand-sky" target="execucao"
         detail=${`Execução às 05:00 de ${dia.execCurto}, avaliando quatro peças em cada uma das ${k.maquinas} máquinas. A previsão considera a janela até 06:00 do dia seguinte.`} />
-    </div>
+    </div>`}
     ${window.Replay && html`<${window.Replay} />`}
     <div class="grid gap-5 lg:grid-cols-5">
       <${Cartao} id="prioridades" title="Prioridade de manutenção · hoje" accent="border-l-violet" className="lg:col-span-3 bg-violet-soft/40">

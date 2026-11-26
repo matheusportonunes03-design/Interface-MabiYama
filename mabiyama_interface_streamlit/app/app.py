@@ -228,66 +228,90 @@ def autenticar(email: str, senha: str):
     return None
 
 
+def _resumo_login():
+    """Números do dia para a tela de entrada (previsão padrão)."""
+    try:
+        d = dados_painel(None)
+        dia = d["dias"][0]
+        lista = dia.get("lista", [])
+        return dia["execCurto"], sum(e["prob"] > 50 for e in lista), len(lista)
+    except Exception:
+        return None
+
+
 def tela_login():
-    st.markdown("""<style>
-      .st-key-login { max-width: 28rem; margin: 0 auto; padding: 2.5rem 1.5rem; }
-      @media (min-width: 640px) { .st-key-login { padding: 3.5rem 1.5rem; } }
-      .st-key-login [data-testid="stForm"] { border: 0; padding: 0; margin-top: 1.5rem; }
-      .st-key-login [data-testid="stForm"] [data-testid="stVerticalBlock"] { gap: 1rem !important; }
-      .st-key-login [data-testid="stForm"] { margin-top: 1.5rem !important; }
-      .st-key-esqueci { align-self: flex-end; }
-      .st-key-esqueci button { width: auto !important; }
-      .st-key-sociais { gap: .75rem !important; }
-      .st-key-sociais button, .st-key-entrar button { width: 100%; }
-      .st-key-cadastro { margin-top: 1rem; }
-      .st-key-cadastro button { width: 100%; justify-content: center; }
+    """Tela de entrada "Maré": mar profundo com ondas e bolhas, marca à esquerda e o acesso num cartão."""
+    st.markdown(f"""<style>
+      .stApp {{ background: linear-gradient(170deg, #0a1a3f 0%, #123a8a 52%, #1f6fd1 100%) fixed !important; }}
+      [data-testid="stSidebar"], [data-testid="stExpandSidebarButton"] {{ display: none !important; }}
+      .mare {{ position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }}
+      .mare svg {{ position: absolute; left: 0; bottom: 0; width: 200%; }}
+      .mare .o1 {{ height: 34vh; animation: mareOnda 16s linear infinite; }}
+      .mare .o2 {{ height: 27vh; animation: mareOnda 24s linear infinite reverse; }}
+      .mare .o3 {{ height: 18vh; animation: mareOnda 11s linear infinite; }}
+      .mare i {{ position: absolute; border-radius: 50%; border: 2px solid rgba(186,224,255,.45); animation: mareBolha 10s ease-in infinite; }}
+      @keyframes mareOnda {{ to {{ transform: translateX(-50%); }} }}
+      @keyframes mareBolha {{ 0% {{ transform: translateY(0) scale(.6); opacity: 0; }} 20% {{ opacity: .8; }} 100% {{ transform: translateY(-55vh) scale(1); opacity: 0; }} }}
+      @media (prefers-reduced-motion: reduce) {{ .mare svg, .mare i {{ animation: none; }} }}
+      .st-key-entrada {{ position: relative; z-index: 1; max-width: 76rem; margin: 0 auto; padding: 4rem 2rem 8rem; gap: 4rem !important;
+        flex-wrap: wrap; align-items: flex-start !important; }}
+      .st-key-entrada_esq {{ flex: 1 1 26rem; gap: 1.25rem !important; color: #eaf2ff; }}
+      .st-key-entrada_esq [data-testid="stImage"] img {{ width: 330px !important; max-width: 100%; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
+      .mare-h1 {{ margin: .5rem 0 0 !important; font-size: 2.75rem !important; line-height: 1.1 !important; font-weight: 800; color: #fff; max-width: 36rem; }}
+      .mare-p {{ margin: 0; font-size: 1.05rem !important; line-height: 1.55; color: #bcd3f5; max-width: 33rem; }}
+      .mare-chips {{ display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .4rem; }}
+      .mare-chips span {{ display: inline-flex; align-items: center; gap: .5rem; border-radius: 999px; padding: .5rem .9rem; font-size: .82rem; font-weight: 700;
+        color: #eaf2ff; background: rgb(10 26 63 / .45); border: 1px solid rgb(143 211 255 / .35); backdrop-filter: blur(4px); }}
+      .mare-chips i {{ width: 8px; height: 8px; border-radius: 50%; }}
+      .st-key-login {{ flex: 0 0 25rem; max-width: 100%; background: var(--card); border-radius: 22px; padding: 2.1rem 2.1rem 1.8rem;
+        box-shadow: 0 30px 60px -20px rgb(3 10 30 / .65); margin-top: .5rem; }}
+      .st-key-login [data-testid="stForm"] {{ border: 0; padding: 0; margin-top: 1.25rem !important; }}
+      .st-key-login [data-testid="stForm"] [data-testid="stVerticalBlock"] {{ gap: 1rem !important; }}
+      .st-key-esqueci {{ align-self: flex-end; }}
+      .st-key-esqueci button {{ width: auto !important; }}
+      .st-key-entrar button {{ width: 100%; height: 3rem !important; border-radius: 12px !important; border: 0 !important;
+        background: linear-gradient(100deg, #163283, #2563d8) !important; color: #fff !important; font-weight: 800 !important; }}
+      .st-key-entrar button p {{ font-weight: 800 !important; font-size: 1rem !important; }}
+      .st-key-entrar button:hover {{ filter: brightness(1.08); }}
     </style>""", unsafe_allow_html=True)
-    aplicar({"entrar": ["primario", "h11", "icodepois:arrow-right"], "esqueci": ["link"],
-             "google": ["contorno", "google", "h11"], "lovable": ["contorno", "lovable", "h11"], "cadastro": ["link"]})
+    st.markdown('''<div class="mare" aria-hidden="true"><i style="bottom:15vh;left:14%;width:14px;height:14px"></i><i style="bottom:11vh;left:31%;width:9px;height:9px;animation-delay:3s"></i><i style="bottom:17vh;left:47%;width:11px;height:11px;animation-delay:5.5s"></i><i style="bottom:12vh;left:72%;width:10px;height:10px;animation-delay:7s"></i><svg class="o1" viewBox="0 0 1600 200" preserveAspectRatio="none"><path d="M0 90 Q200 30 400 90 T800 90 T1200 90 T1600 90 V200 H0Z" fill="#5fb4f2" fill-opacity=".22"/></svg><svg class="o2" viewBox="0 0 1600 200" preserveAspectRatio="none"><path d="M0 100 Q200 50 400 100 T800 100 T1200 100 T1600 100 V200 H0Z" fill="#8fd3ff" fill-opacity=".2"/></svg><svg class="o3" viewBox="0 0 1600 200" preserveAspectRatio="none"><path d="M0 110 Q200 70 400 110 T800 110 T1200 110 T1600 110 V200 H0Z" fill="#eaf4ff" fill-opacity=".9"/></svg></div>''', unsafe_allow_html=True)
+    aplicar({"entrar": ["primario", "h11", "icodepois:arrow-right"], "esqueci": ["link"]})
 
-    st.markdown("""<header class="cab-grad" style="padding:2rem 1.5rem">
-      <div style="max-width:80rem;margin:0 auto">
-        <p class="eyebrow" style="margin:0">Poli Júnior · Manutenção preditiva</p>
-        <h1 class="titulo" style="margin-top:.5rem;font-size:2.25rem;line-height:2.5rem">MaBiYama</h1>
-      </div></header>""", unsafe_allow_html=True)
-
-    with st.container(key="login"):
-        st.markdown(f"""<div style="color:var(--brand);margin-bottom:1.25rem">{icone("factory", tam=36)}</div>
-          <h2 style="font-size:1.5rem;line-height:2rem;font-weight:800;color:var(--foreground)">Acesse sua frota</h2>
-          <p style="margin:.5rem 0 0;font-size:.875rem;color:var(--muted-foreground)">Bem-vindo à MaBiYama.</p>""",
-                    unsafe_allow_html=True)
-        with st.form("form_login", border=False, enter_to_submit=True):
-            email = st.text_input("Email", key="email", autocomplete="email")
-            senha = st.text_input("Senha", type="password", key="senha", autocomplete="current-password")
-            esqueci = st.form_submit_button("Esqueci minha senha", key="esqueci")
-            entrar = st.form_submit_button("Entrar", key="entrar", width="stretch")
-        if entrar:
-            u = autenticar(email, senha)
-            if u:
-                st.session_state.usuario, st.session_state.aba = u, "model"
-                st.rerun()
-            st.session_state.msg_login = "Não foi possível entrar. Confira email e senha."
-        if esqueci:
-            st.session_state.msg_login = "Para redefinir a senha, fale com a equipe da Poli Júnior responsável pelo painel."
-        if st.session_state.get("msg_login"):
-            st.markdown(f'<p role="status" class="status">{st.session_state.msg_login}</p>', unsafe_allow_html=True)
-
-        st.markdown("""<div style="margin:1.25rem 0;display:flex;align-items:center;gap:.75rem;font-size:.75rem;
-          color:var(--muted-foreground)"><span style="height:1px;flex:1;background:var(--border)"></span>ou
-          <span style="height:1px;flex:1;background:var(--border)"></span></div>""", unsafe_allow_html=True)
-        with st.container(key="sociais"):
-            if st.button("Continuar com Google", key="google", width="stretch"):
-                st.session_state.msg_login = "Entrar com Google não está disponível nesta versão. Use email e senha."
-                st.rerun()
-            if st.button("Continuar com Lovable", key="lovable", width="stretch"):
-                st.session_state.msg_login = "Entrar com Lovable não está disponível nesta versão. Use email e senha."
-                st.rerun()
-        if st.button("Ainda não tem conta? Cadastre-se", key="cadastro", width="stretch"):
-            st.session_state.msg_login = "O acesso é criado pela equipe da Poli Júnior. Peça seu cadastro a ela."
-            st.rerun()
-        st.markdown(f"""<p style="margin-top:1.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem;
-          font-size:.75rem;color:var(--muted-foreground)">{icone("lock", tam=12)} MaBiYama · Poli Júnior</p>""",
-                    unsafe_allow_html=True)
+    resumo = _resumo_login()
+    with st.container(key="entrada", horizontal=True):
+        with st.container(key="entrada_esq"):
+            st.image(str(tema.MARCA / "logo_escuro.webp"), width=330)
+            chips = ""
+            if resumo:
+                ex, alto, jan = resumo
+                chips = (f'<div class="mare-chips"><span><i style="background:#5ee0a0"></i>Previsão pronta · 05:00 de {ex}</span>'
+                         f'<span><i style="background:#f5a524"></i>{alto} peça{"s" if alto != 1 else ""} acima de 50%</span>'
+                         f'<span><i style="background:#8fd3ff"></i>{jan} peças na janela de risco</span></div>')
+            st.markdown('<h1 class="mare-h1">Cada bomba da frota, acompanhada antes de parar.</h1>'
+                        '<p class="mare-p">Painel de manutenção preditiva: previsão diária às 05:00, prioridades da equipe e o histórico de cada máquina.</p>'
+                        + chips, unsafe_allow_html=True)
+        with st.container(key="login"):
+            st.markdown("""<h2 style="font-size:1.5rem;line-height:2rem;font-weight:800;color:var(--foreground)">Acesse sua frota</h2>
+              <p style="margin:.25rem 0 0;font-size:.875rem;color:var(--muted-foreground)">Bem-vindo à MaBiYama.</p>""", unsafe_allow_html=True)
+            with st.form("form_login", border=False, enter_to_submit=True):
+                email = st.text_input("Email", key="email", autocomplete="email", placeholder="voce@empresa.com")
+                senha = st.text_input("Senha", type="password", key="senha", autocomplete="current-password")
+                esqueci = st.form_submit_button("Esqueci minha senha", key="esqueci")
+                entrar = st.form_submit_button("Entrar", key="entrar", width="stretch")
+            if entrar:
+                u = autenticar(email, senha)
+                if u:
+                    st.session_state.usuario, st.session_state.aba = u, "model"
+                    st.session_state.pop("msg_login", None)
+                    st.rerun()
+                st.session_state.msg_login = "Não foi possível entrar. Confira email e senha."
+            if esqueci:
+                st.session_state.msg_login = "Para redefinir a senha, fale com a equipe da Poli Júnior responsável pelo painel."
+            if st.session_state.get("msg_login"):
+                st.markdown(f'<p role="status" class="status">{st.session_state.msg_login}</p>', unsafe_allow_html=True)
+            st.markdown(f"""<p style="margin-top:1.25rem;display:flex;align-items:center;justify-content:center;gap:.5rem;
+              font-size:.8rem;color:var(--muted-foreground)">{icone("lock", tam=12)} O acesso é criado pela equipe da Poli Júnior.</p>""",
+                        unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ painel
@@ -315,9 +339,9 @@ def cabecalho_painel(aba):
       .st-key-cab_topo { max-width: 80rem; margin: 0 auto; padding: 1.75rem 1.5rem; display: flex !important; flex-direction: row !important;
         flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem !important; }
       .st-key-cab_topo > div { width: auto !important; flex: 0 1 auto; }
-      .st-key-abas { max-width: 80rem; margin: 0 auto; padding: 0 1rem; gap: .25rem !important; flex-wrap: wrap; }
+      .st-key-abas { max-width: 80rem; margin: 0 auto; padding: 0 1rem .35rem; gap: .35rem !important; flex-wrap: wrap; }
       @media (min-width: 640px) { .st-key-abas { padding: 0 1.5rem; } }
-      .st-key-abas button { height: auto; border: 0 !important; border-radius: .5rem .5rem 0 0 !important; padding: .625rem 1.25rem !important;
+      .st-key-abas button { height: auto; border: 0 !important; border-radius: 999px !important; padding: .5rem 1.15rem !important;
         background: transparent !important; color: color-mix(in oklab, var(--primary-foreground) 80%, transparent) !important; }
       .st-key-abas button p { font-weight: 700 !important; font-size: .875rem !important; }
       .st-key-abas button:hover { background: color-mix(in oklab, var(--card) 10%, transparent) !important; }
@@ -328,8 +352,9 @@ def cabecalho_painel(aba):
       .st-key-envio button:hover { background: color-mix(in oklab, var(--card) 90%, transparent) !important; }
       .st-key-envio button [data-testid="stIconMaterial"] { display: none; }
     </style>""", unsafe_allow_html=True)
-    st.markdown(f"""<style>.st-key-aba_{aba} button {{ background: var(--background) !important; color: var(--brand-deep) !important; }}
-      .st-key-aba_{aba} button:hover {{ background: var(--background) !important; }}</style>""", unsafe_allow_html=True)
+    st.markdown(f"""<style>.st-key-aba_{aba} button {{ background: var(--card) !important; color: var(--brand-deep) !important;
+        box-shadow: 0 6px 16px -8px rgb(0 0 0 / .45) !important; }}
+      .st-key-aba_{aba} button:hover {{ background: var(--card) !important; }}</style>""", unsafe_allow_html=True)
     aplicar({"envio": ["ico:upload"], "aba_perfil": ["ico:user"]})
 
     with st.container(key="cab"):
