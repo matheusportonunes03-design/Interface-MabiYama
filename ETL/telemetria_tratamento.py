@@ -82,7 +82,7 @@ def _qualidade_pior(s):
     return s.iloc[0] if len(s) else pd.NA
 
 
-def tratar(bruto, reg):
+def tratar(bruto, reg, *, preencher_grade=True):
     df = bruto.copy()
     reg.resumo["linhas_entrada"] = len(df)
 
@@ -211,7 +211,10 @@ def tratar(bruto, reg):
     df = resolver_conflitos(df, reg)
 
     # ---- 11. grade horária completa
-    df = completar_grade(df, reg)
+    if preencher_grade:
+        df = completar_grade(df, reg)
+    else:
+        df["flag_hora_faltante"] = 0
 
     # ---- 12. outliers: só diagnóstico
     partes, total = [], 0

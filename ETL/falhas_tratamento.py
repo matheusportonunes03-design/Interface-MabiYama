@@ -11,7 +11,7 @@ NOME = "falhas"
 CHAVE_EVENTO = ["id_maquina", "data_hora", "peca"]
 
 
-def tratar(bruto, reg, chaves_manutencao=None):
+def tratar(bruto, reg, chaves_manutencao=None, hora_padrao=None):
     df = bruto.copy()
     reg.resumo["linhas_entrada"] = len(df)
 
@@ -38,7 +38,12 @@ def tratar(bruto, reg, chaves_manutencao=None):
 
     # ---- lançamentos suspeitos: fora do horário padrão E sem manutenção correspondente
     hora = df["data_hora"].dt.hour
-    modal = int(hora.mode().iloc[0])
+    if hora.empty:
+        for coluna in ("flag_horario_atipico", "flag_sem_manutencao", "flag_falha_suspeita"):
+            df[coluna] = pd.Series(index=df.index, dtype="int8")
+        reg.resumo["linhas_saida"] = 0
+        return df
+    modal = int(hora.mode().iloc[0]) if hora_padrao is None else hora_padrao
     df["flag_horario_atipico"] = (hora != modal).astype("int8")
     if chaves_manutencao is not None:
         sem_manut = ~c.marcar_presenca(df, chaves_manutencao)

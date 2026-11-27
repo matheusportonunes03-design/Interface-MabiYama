@@ -256,7 +256,7 @@ def _ir(linha: int):
 
 
 # ------------------------------------------------------------------ envio e publicação das bases brutas
-FORMATO_BRUTAS = """Mande os **6 arquivos CSV brutos**, do jeito que o cliente entrega (separados por vírgula, com cabeçalho).
+FORMATO_BRUTAS = """Use arquivos CSV brutos separados por vírgula, com cabeçalho.
 O nome do arquivo não importa: cada um é reconhecido pelas colunas. Colunas a mais são ignoradas.
 
 | Base | Colunas obrigatórias |
@@ -268,27 +268,33 @@ Números com vírgula decimal, nomes com acento ou caixa diferente, sentinelas -
 como descrito no relatório de qualidade. A manutenção também pode vir com uma coluna por peça (`peca_A` … `peca_D` = 0/1)."""
 
 
-def _popover_brutas(repositorio, versao):
-    st.markdown("Envie as seis bases brutas para o tratamento. As tabelas tratadas e o relatório de qualidade "
-                "serão publicados no repositório público **Interface-MabiYama**.")
+def _popover_brutas(repositorio, versao, pasta):
+    st.caption("As tabelas tratadas e o relatório de qualidade são publicados no repositório público Interface-MabiYama.")
     if repositorio is None:
         st.info("A publicação requer um token do GitHub configurado nos Secrets e acesso ao repositório.")
         return
+    modo = st.radio("Modo de atualização", ("Substituir bases", "Complementar tabela"), horizontal=True)
+    complemento = modo == "Complementar tabela"
+    if complemento:
+        st.caption("Envie um CSV bruto com as novas linhas. A tabela é identificada pelo cabeçalho.")
+    else:
+        st.caption("Envie os seis CSVs brutos completos para substituir as bases atuais.")
     with st.expander("Formato dos arquivos"):
         st.markdown(FORMATO_BRUTAS)
-    arqs = st.file_uploader("Bases brutas (6 arquivos .csv)", type="csv", accept_multiple_files=True,
-                            key=f"brutas_arqs_{st.session_state.get('brutas_v', 0)}")
-    if not arqs:
-        st.caption("Leva cerca de 1 a 2 minutos depois do envio (a telemetria tem ~1 milhão de linhas).")
+    envio = st.file_uploader("CSV com novas linhas" if complemento else "Bases brutas (6 arquivos .csv)",
+                            type="csv", accept_multiple_files=not complemento,
+                            key=f"brutas_arqs_{modo}_{st.session_state.get('brutas_v', 0)}")
+    if not envio:
         return
-    bases, problemas = atualizar_bases.identificar([(a.name, a.getvalue()) for a in arqs])
-    lista = " · ".join(("✓ " if b in bases else "✗ ") + atualizar_bases.TITULOS[b] for b in atualizar_bases.COLUNAS)
-    st.markdown(f'<div class="lb-info">{lista}</div>', unsafe_allow_html=True)
+    arqs = [envio] if complemento else envio
+    bases, problemas = atualizar_bases.identificar([(a.name, a.getvalue()) for a in arqs], exigir_todas=not complemento)
     for p in problemas:
         st.error(p)
-    if problemas or len(bases) < len(atualizar_bases.COLUNAS):
+    if problemas or not bases:
         return
-    if st.button("Tratar e atualizar as tabelas", key="brutas_ir", type="primary", width="stretch"):
+    st.caption(" · ".join(atualizar_bases.TITULOS[b] for b in bases))
+    rotulo = f"Tratar e adicionar em {atualizar_bases.TITULOS[next(iter(bases))]}" if complemento else "Tratar e substituir as bases"
+    if st.button(rotulo, key="brutas_ir", type="primary", width="stretch"):
         barra = st.progress(0.0, text="Começando o tratamento…")
 
         def aviso(etapa, i, n):
@@ -296,7 +302,10 @@ def _popover_brutas(repositorio, versao):
             barra.progress(i / (n + 1), text=f"Tratando: {nome} ({i + 1} de {n})")
         with TemporaryDirectory(prefix="mabiyama_envio_") as temporaria:
             try:
-                destino, resumo = atualizar_bases.rodar(bases, Path(temporaria), aviso)
+                if complemento:
+                    destino, resumo = atualizar_bases.complementar(bases, pasta, Path(temporaria), aviso)
+                else:
+                    destino, resumo = atualizar_bases.rodar(bases, Path(temporaria), aviso)
             except Exception as erro:
                 barra.empty()
                 mensagem, _, detalhes = str(erro).partition("\n\n")
@@ -306,6 +315,10 @@ def _popover_brutas(repositorio, versao):
                         st.code(detalhes, language="text")
                 return
 
+            if complemento and resumo["adicionadas"] == 0:
+                barra.empty()
+                st.info("Nenhuma linha nova válida para adicionar. A versão publicada continua em uso.")
+                return
             barra.progress(0.9, text="Publicando as bases tratadas no GitHub…")
             try:
                 commit = repositorio.publicar(destino, versao)
@@ -338,7 +351,7 @@ def _barra_origem(repositorio, versao, pasta):
             st.markdown('<div class="origem"><span class="pt"></span><span><b>Bases do projeto</b>, tratadas pela equipe na Etapa 2.</span></div>',
                         unsafe_allow_html=True)
         with st.popover("Atualizar com bases brutas", icon=":material/upload_file:", key=f"brutas_pop_{st.session_state.get('brutas_v', 0)}"):
-            _popover_brutas(repositorio, versao)
+            _popover_brutas(repositorio, versao, pasta)
         rel = pasta / "relatorio_qualidade.md"
         if rel.is_file():
             st.download_button("Relatório de qualidade", rel.read_bytes(), file_name=rel.name, mime="text/markdown",
@@ -346,10 +359,17 @@ def _barra_origem(repositorio, versao, pasta):
     publicacao = st.session_state.pop("trat_msg", None)
     if publicacao:
         resumo, commit = publicacao
-        partes = [f"{TABELAS[nome]['titulo']}: {linhas:,}".replace(",", ".") for nome, linhas in resumo["linhas"].items()]
-        mensagem = "Bases tratadas publicadas no GitHub. " + " · ".join(partes) + "."
-        if resumo["rejeitados"]:
-            mensagem += " Arquivos com linhas descartadas: " + ", ".join(resumo["rejeitados"]) + "."
+        if "adicionadas" in resumo:
+            titulo = TABELAS[resumo["base"]]["titulo"]
+            mensagem = (f"{titulo} recebeu {resumo['adicionadas']} linhas tratadas e agora tem {resumo['total']} linhas. "
+                        f"{resumo['ignoradas']} registros já existentes e {resumo['descartadas']} linhas inválidas foram ignorados.")
+            if resumo["preenchidas"]:
+                mensagem += f" {resumo['preenchidas']} linhas preencheram lacunas de telemetria."
+        else:
+            partes = [f"{TABELAS[nome]['titulo']}: {linhas:,}".replace(",", ".") for nome, linhas in resumo["linhas"].items()]
+            mensagem = "Bases tratadas publicadas no GitHub. " + " · ".join(partes) + "."
+            if resumo["rejeitados"]:
+                mensagem += " Arquivos com linhas descartadas: " + ", ".join(resumo["rejeitados"]) + "."
         st.success(mensagem)
         st.link_button("Ver commit no GitHub", f"{URL_REPOSITORIO}/commit/{commit}")
 

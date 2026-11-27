@@ -58,11 +58,15 @@ python preparar_dados.py --bases <pasta>/tratados --so-tabelas   # converte para
 Única mudança em relação ao repositório da equipe: `comum.dia_primeiro` decide pelos próprios dados se as datas fora do ISO
 estão em dia/mês/ano ou mês/dia/ano (o Excel em inglês salva `10/1/2022 6:00`; antes isso virava 10 de janeiro).
 
-Na aba **Dados tratados**, o botão **Atualizar com bases brutas** recebe os 6 CSVs brutos (`atualizar_bases.py`): reconhece cada
-base pelo cabeçalho, roda o ETL num processo separado (~1 a 2 min, ~1 GB de pico) e converte para Parquet. Os CSVs brutos
-servem de entrada temporária para o tratamento. O PyGithub publica apenas os sete Parquets e o relatório de qualidade
-em `dados/tratados/`, em um único commit na `main` do `Interface-MabiYama`. **Dados tratados** e **Máquinas** carregam
-as tabelas do mesmo commit quando a página é aberta ou atualizada.
+Na aba **Dados tratados**, o botão **Atualizar com bases brutas** oferece dois modos.
+
+- **Substituir bases** usa os seis CSVs brutos completos e executa o ETL em todas as tabelas.
+- **Complementar tabela** recebe um único CSV bruto. O app identifica a tabela pelo cabeçalho, trata o envio e
+  acrescenta registros novos. Registros já publicados com a mesma chave são preservados. Uma leitura real pode
+  preencher uma lacuna da telemetria. O app refaz a integração a partir das tabelas atualizadas.
+
+Os CSVs brutos servem de entrada temporária. O PyGithub publica os resultados tratados em `dados/tratados/`, em um único
+commit na `main` do `Interface-MabiYama`. **Dados tratados** e **Máquinas** carregam as tabelas do mesmo commit.
 
 #### Ativar a publicação no GitHub
 
@@ -76,7 +80,7 @@ as tabelas do mesmo commit quando a página é aberta ou atualizada.
    token = "github_pat_..."
    ```
 
-3. Abra **Dados tratados** e envie os seis CSVs. Use o link mostrado na confirmação para conferir o commit e abra
+3. Abra **Dados tratados**, escolha o modo e envie os CSVs correspondentes. Use o link mostrado na confirmação para conferir o commit e abra
    outra sessão para verificar as novas tabelas.
 
 As tabelas tratadas, o relatório e seu histórico ficam públicos no GitHub. Cada arquivo publicado precisa caber no

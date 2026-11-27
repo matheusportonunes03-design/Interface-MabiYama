@@ -1,5 +1,6 @@
 """Identifica as bases brutas enviadas e roda o ETL em uma pasta de trabalho temporária."""
 import io
+import json
 import re
 import subprocess
 import sys
@@ -51,7 +52,7 @@ def _manutencao_por_colunas(dados: bytes) -> bytes:
     return longo[resto[:2] + ["peca"] + resto[2:]].to_csv(index=False).encode("utf-8")
 
 
-def identificar(arquivos: list[tuple[str, bytes]]) -> tuple[dict, list[str]]:
+def identificar(arquivos: list[tuple[str, bytes]], *, exigir_todas=True) -> tuple[dict, list[str]]:
     """Casa cada arquivo com uma base pelo cabeçalho (o nome do arquivo não importa).
 
     Retorna ({base: bytes}, [problemas]). Em caso de dúvida vence a base com mais colunas exigidas presentes
@@ -74,15 +75,12 @@ def identificar(arquivos: list[tuple[str, bytes]]) -> tuple[dict, list[str]]:
             continue
         achados[base] = dados
     faltando = [TITULOS[b] for b in COLUNAS if b not in achados]
-    if faltando and not problemas:
+    if exigir_todas and faltando and not problemas:
         problemas.append("Faltam as bases: " + ", ".join(faltando) + ". O tratamento cruza as seis, então todas são necessárias.")
     return achados, problemas
 
 
-def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
-    """Grava as bases, roda o ETL e converte para Parquet. Retorna (pasta com os .parquet, resumo).
-
-    aviso(etapa, i, n) é chamado a cada etapa do ETL, para a barra de progresso."""
+def _gravar_entrada(bases: dict, pasta: Path):
     entrada = pasta / "dados" / "extraídos"
     entrada.mkdir(parents=True)
     for b, dados in bases.items():
@@ -90,20 +88,28 @@ def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Pat
             dados = _manutencao_por_colunas(dados)
         (entrada / f"{b}.csv").write_bytes(dados)
 
+
+def _executar_etl(script, argumentos, etapas, aviso):
     log = []
-    proc = subprocess.Popen([sys.executable, "-X", "utf8", "-u", str(ETL), "--dados", str(pasta / "dados")], cwd=str(RAIZ),
+    proc = subprocess.Popen([sys.executable, "-X", "utf8", "-u", str(script), *map(str, argumentos)], cwd=str(RAIZ),
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
     for linha in proc.stdout:
         log.append(linha.rstrip())
         etapa = "integracao" if linha.startswith("=== INTEGRA") else (re.match(r"== (\w+):", linha) or [None, None])[1]
-        if etapa in ETAPAS:
-            aviso(etapa, ETAPAS.index(etapa), len(ETAPAS))
+        if etapa in etapas:
+            aviso(etapa, etapas.index(etapa), len(etapas))
     proc.wait()
     if proc.returncode != 0:
         erro = next((l for l in reversed(log) if l.strip() and not l.startswith(" ")), "erro desconhecido")
         raise RuntimeError(f"O tratamento parou: {erro}\n\n" + "\n".join(log[-25:]))
 
+
+def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
+    """Grava as seis bases, roda o ETL e converte para Parquet."""
     import preparar_dados
+
+    _gravar_entrada(bases, pasta)
+    _executar_etl(ETL, ["--dados", pasta / "dados"], ETAPAS, aviso)
     tratados = pasta / "dados" / "tratados"
     destino = pasta / "parquet"
     preparar_dados.exportar_tabelas(tratados, destino)
@@ -111,3 +117,14 @@ def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Pat
               "linhas": {p.stem: pq.ParquetFile(p).metadata.num_rows for p in sorted(destino.glob("*.parquet"))},
               "rejeitados": sorted(p.name for p in (tratados / "_rejeitados").glob("*.csv")) if (tratados / "_rejeitados").exists() else []}
     return destino, resumo
+
+
+def complementar(bases: dict, publicados: Path, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
+    """Trata um CSV e o incorpora à versão publicada das tabelas."""
+    if len(bases) != 1:
+        raise ValueError("Envie um CSV por complemento.")
+    base = next(iter(bases))
+    _gravar_entrada(bases, pasta)
+    _executar_etl(ETL.with_name("complemento.py"), [base, publicados, pasta], [base, "integracao"], aviso)
+    resumo = json.loads((pasta / "resumo_complemento.json").read_text(encoding="utf-8"))
+    return pasta / "parquet", resumo

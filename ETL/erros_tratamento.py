@@ -32,7 +32,7 @@ def padronizar_severidade(valor):
     return valor
 
 
-def tratar(bruto, reg):
+def tratar(bruto, reg, horas_historicas=None):
     df = bruto.copy()
     reg.resumo["linhas_entrada"] = len(df)
 
@@ -61,12 +61,13 @@ def tratar(bruto, reg):
 
     # ---- pico de horário (provável horário padrão de lançamento)
     hora = df["data_hora"].dt.hour
-    cont = hora.value_counts().sort_index()
-    pico = int(cont.idxmax())
-    media_outras = cont.drop(pico).mean()
-    excesso = int(round(cont.max() - media_outras))
+    horas = hora if horas_historicas is None else pd.concat([horas_historicas, hora], ignore_index=True)
+    cont = horas.value_counts().sort_index()
+    pico = int(cont.idxmax()) if len(cont) > 1 else None
+    media_outras = cont.drop(pico).mean() if pico is not None else None
     df["flag_horario_pico"] = 0
-    if cont.max() > RAZAO_PICO * media_outras:
+    if pico is not None and cont.max() > RAZAO_PICO * media_outras:
+        excesso = int(round(cont.max() - media_outras))
         chaves = [k for k in ("id_maquina", "codigo_erro") if k in df.columns]
         dia = df["data_hora"].dt.normalize()
         no_pico = df[hora == pico].assign(_dia=dia)
