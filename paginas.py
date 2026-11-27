@@ -354,11 +354,19 @@ def _set_maq(m):
     st.session_state.ficha_maq = m
 
 
+ORDENS = ["Nº da máquina", "Risco de quebra"]
+
+
 def _ordem_pg():
-    """Clicar de novo na ordem já escolhida não desmarca: mantém a anterior."""
-    if st.session_state.get("fm_ordem_pg") is None:
-        st.session_state.fm_ordem_pg = st.session_state.get("_fm_ordem_ult", "Nº da máquina")
-    st.session_state._fm_ordem_ult = st.session_state.fm_ordem_pg
+    """Ordem escolhida na página vale também na barra lateral; clicar de novo na mesma não desmarca."""
+    v = st.session_state.get("fm_ordem_pg")
+    if v is not None:
+        st.session_state.fm_ordem = v
+
+
+def _ordem_barra():
+    if st.session_state.get("fm_ordem") is None:
+        st.session_state.fm_ordem = st.session_state.get("fm_ordem_pg") or "Risco de quebra"
 
 
 def _sync_pg():
@@ -383,8 +391,6 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
         # ---------------- barra lateral: escolher e percorrer as máquinas
         with st.sidebar:
             tema.secao("Ficha da máquina")
-            ordem = st.segmented_control("Ordenar a frota por", ["Maior risco", "Mais falhas", "Código"], key="fm_ordem",
-                                         default="Maior risco") or "Maior risco"
             linhas = sorted(maq["linha_producao"].dropna().unique())
             modelos = sorted(maq["modelo"].dropna().unique())
             fl = st.multiselect("Linhas de produção", linhas, key="fm_linhas", placeholder="Todas")
@@ -397,8 +403,11 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
                 mk &= maq["modelo"].isin(fmod)
             sel = maq[mk]
             ids = list(sel["id_maquina"])
-            chave_ord = {"Maior risco": lambda m: (-risco_max.get(m, 0), m), "Mais falhas": lambda m: (-nfal.get(m, 0), m),
-                         "Código": lambda m: m}[ordem]
+            st.session_state.setdefault("fm_ordem", "Risco de quebra")
+            if st.session_state.get("fm_ordem") not in ORDENS:
+                st.session_state.fm_ordem = "Risco de quebra"
+            ordem = st.segmented_control("Ordenar as máquinas por", ORDENS, key="fm_ordem", on_change=_ordem_barra) or "Risco de quebra"
+            chave_ord = (lambda m: m) if ordem == "Nº da máquina" else (lambda m: (-risco_max.get(m, 0), m))
             ids.sort(key=chave_ord)
             if not ids:
                 st.markdown('<div class="lb-info">Nenhuma máquina com esses filtros.</div>', unsafe_allow_html=True)
@@ -411,12 +420,6 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
             b1, b2 = st.columns(2)
             b1.button("◀ Anterior", key="fm_ant", width="stretch", disabled=k == 0, on_click=_set_maq, args=(ids[max(0, k - 1)],))
             b2.button("Próxima ▶", key="fm_prox", width="stretch", disabled=k == len(ids) - 1, on_click=_set_maq, args=(ids[min(len(ids) - 1, k + 1)],))
-            st.markdown(f'<div class="lb-info">{k + 1}ª de {len(ids)} máquinas na ordem “{ordem.lower()}”.</div>', unsafe_allow_html=True)
-            st.markdown('<p style="margin:.4rem 0 0;font-size:.75rem;font-weight:800;color:var(--muted-foreground)">ATALHOS · MAIOR RISCO</p>',
-                        unsafe_allow_html=True)
-            for mm_ in sorted(risco_max, key=lambda x: -risco_max[x])[:4]:
-                st.button(f"{mm_}  ·  {risco_max[mm_]:.0f}%", key=f"fm_top_{mm_}", width="stretch", on_click=_set_maq, args=(mm_,),
-                          type="primary" if mm_ == m else "secondary")
             tema.secao("Sensores")
             peca = st.selectbox("Sensor da peça", PECAS, format_func=lambda p: f"{NOME_PECA[p]} ({SENSOR_DA_PECA[p]})", key="ficha_peca")
             agr = st.segmented_control("Resolução", ["horária", "média diária"], key="ficha_res", default="horária") or "horária"
@@ -436,8 +439,8 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
                     'manutenções e o comportamento dos sensores. Troque de máquina aqui ou pela barra lateral.</p>', unsafe_allow_html=True)
         # seletor da página: a frota inteira (sem os filtros da barra lateral), na ordem escolhida aqui
         todas = list(maq["id_maquina"])
-        st.session_state.setdefault("fm_ordem_pg", "Nº da máquina")
-        ord_pg = st.session_state.get("fm_ordem_pg") or "Nº da máquina"
+        ord_pg = ordem
+        st.session_state.fm_ordem_pg = ordem
         todas.sort(key=(lambda x: x) if ord_pg == "Nº da máquina" else (lambda x: (-risco_max.get(x, 0), x)))
         rot_todas = {x: f"{x} · {risco_max.get(x, 0):.0f}% · {nfal.get(x, 0)} falhas" for x in todas}
         kp = todas.index(m)
@@ -445,10 +448,9 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
         st.session_state["_fm_ids"] = ids
         with st.container(key="fm_escolha", horizontal=True, vertical_alignment="bottom"):
             st.selectbox(f"Máquina · {len(todas)} na frota", todas, key="ficha_maq_pg", format_func=rot_todas.get, on_change=_sync_pg, width=300)
-            st.segmented_control("Ordem", ["Nº da máquina", "Risco de falha"], key="fm_ordem_pg", on_change=_ordem_pg)
+            st.segmented_control("Ordenar por", ORDENS, key="fm_ordem_pg", on_change=_ordem_pg)
             st.button("◀ Anterior", key="fm_ant_pg", disabled=kp == 0, on_click=_set_maq, args=(todas[max(0, kp - 1)],))
             st.button("Próxima ▶", key="fm_prox_pg", disabled=kp == len(todas) - 1, on_click=_set_maq, args=(todas[min(len(todas) - 1, kp + 1)],))
-            st.markdown(f'<p class="pg-sub" style="margin:0 0 .55rem">{kp + 1}ª de {len(todas)} · {ord_pg.lower()}</p>', unsafe_allow_html=True)
         _cartoes([("Modelo", (lambda t: t[:1].upper() + t[1:])(str(info.get("modelo", "–")).replace("_", " "))), ("Idade", f"{info.get('idade', np.nan):.0f} anos" if pd.notna(info.get("idade")) else "–"),
                   ("Fabricante", info.get("fabricante", "–")), ("Planta", info.get("planta", "–")), ("Linha", info.get("linha_producao", "–")),
                   ("Potência", f"{info.get('potencia_kw'):.0f} kW" if pd.notna(info.get("potencia_kw")) else "–"),
