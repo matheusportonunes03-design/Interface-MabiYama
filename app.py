@@ -223,10 +223,10 @@ def usuarios() -> dict:
         return {}
 
 
-def autenticar(email: str, senha: str):
-    u = usuarios().get(email.strip().lower())
+def autenticar(usuario: str, senha: str):
+    u = usuarios().get(usuario.strip().lower())
     if u and hmac.compare_digest(_hash(senha), u.get("senha_sha256", "")):
-        return {"email": email.strip().lower(), "nome": u.get("nome", email.split("@")[0])}
+        return {"usuario": usuario.strip().lower(), "nome": u.get("nome", usuario.split("@")[0])}
     return None
 
 
@@ -299,17 +299,17 @@ def tela_login():
             st.markdown("""<h2 style="font-size:1.5rem;line-height:2rem;font-weight:800;color:var(--foreground)">Acesse sua frota</h2>
               <p style="margin:.25rem 0 0;font-size:.875rem;color:var(--muted-foreground)">Bem-vindo à MaBiYama.</p>""", unsafe_allow_html=True)
             with st.form("form_login", border=False, enter_to_submit=True):
-                email = st.text_input("Email", key="email", autocomplete="email", placeholder="voce@empresa.com")
+                usuario = st.text_input("usuario", key="usuario", autocomplete="usuario", placeholder="Usuário")
                 senha = st.text_input("Senha", type="password", key="senha", autocomplete="current-password")
                 esqueci = st.form_submit_button("Esqueci minha senha", key="esqueci")
                 entrar = st.form_submit_button("Entrar", key="entrar", width="stretch")
             if entrar:
-                u = autenticar(email, senha)
+                u = autenticar(usuario, senha)
                 if u:
                     st.session_state.usuario, st.session_state.aba = u, "model"
                     st.session_state.pop("msg_login", None)
                     st.rerun()
-                st.session_state.msg_login = "Não foi possível entrar. Confira email e senha."
+                st.session_state.msg_login = "Não foi possível entrar. Confira usuario e senha."
             if esqueci:
                 st.session_state.msg_login = "Para redefinir a senha, fale com a equipe da Poli Júnior responsável pelo painel."
             if st.session_state.get("msg_login"):
@@ -706,8 +706,8 @@ def tela_perfil():
         box-shadow: 0 1px 2px rgb(0 0 0 / .05) !important; color: var(--foreground) !important; display: inline-flex; align-items: center; gap: .5rem; }
       .st-key-pf_foto [data-testid="stFileUploaderDropzone"] button:hover { background: var(--accent) !important; }
       .st-key-pf_foto [data-testid="stFileUploaderDropzone"] button::after { content: "Alterar foto"; font-size: .875rem; font-weight: 500; }
-      .st-key-pf_email input { color: var(--muted-foreground) !important; -webkit-text-fill-color: var(--muted-foreground); }
-      .st-key-pf_email [data-testid="stTextInputRootElement"] { background: var(--secondary) !important; }
+      .st-key-pf_usuario input { color: var(--muted-foreground) !important; -webkit-text-fill-color: var(--muted-foreground); }
+      .st-key-pf_usuario [data-testid="stTextInputRootElement"] { background: var(--secondary) !important; }
       .st-key-pf_perso { max-width: 50rem; margin: 0 auto; padding: 0 1.5rem 3rem; width: 100%; }
       .st-key-pf_sair_box { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
     </style>""", unsafe_allow_html=True)
@@ -752,7 +752,7 @@ def tela_perfil():
                     st.session_state.foto = arq.getvalue()
                     st.rerun()
             nome = st.text_input("Nome", value=u["nome"], max_chars=100, key="pf_nome")
-            st.text_input("Email", value=u["email"], disabled=True, key="pf_email")
+            st.text_input("usuario", value=u["usuario"], disabled=True, key="pf_usuario")
             if st.button("Salvar perfil", key="pf_salvar"):
                 if nome.strip():
                     st.session_state.usuario["nome"] = nome.strip()
