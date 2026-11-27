@@ -68,6 +68,19 @@ Na aba **Dados tratados**, o botão **Atualizar com bases brutas** oferece dois 
 Os CSVs brutos servem de entrada temporária. O PyGithub publica os resultados tratados em `dados/tratados/`, em um único
 commit na `main` do `Interface-MabiYama`. **Dados tratados** e **Máquinas** carregam as tabelas do mesmo commit.
 
+### Gerar a previsão m07 após atualizar as bases
+
+O GitHub Actions executa o modelo final do notebook da Etapa 4 quando a `main` recebe novos Parquets tratados.
+O m07 combina 22 listas das famílias y09, v2, membros A–E, listas *hat* e CatBoost. A execução usa o histórico
+rotulado das bases novas e prevê para os dias disponíveis até o último corte das 05h com telemetria observada.
+O volume de dados e os recursos do executor determinam a duração. O fluxo também pode ser iniciado em
+**Actions → Atualizar previsão m07 → Run workflow**.
+
+Em **Enviar dados do dia**, **Baixar CSV atualizado do m07** fica disponível quando a previsão corresponde às bases atuais.
+O arquivo sai no formato `id,peca_A,peca_B,peca_C,peca_D`, com uma linha por máquina e dia previsto. A quantidade de linhas
+é determinada pelas bases. Envie esse CSV pelo campo do mesmo menu para aplicar a previsão na sessão. O manifesto publicado
+junto do CSV identifica a versão das bases que gerou a previsão. O treinamento requer histórico de falhas rotuladas.
+
 #### Ativar a publicação no GitHub
 
 1. Crie um token de acesso pessoal do GitHub do tipo *fine-grained*, com acesso apenas a `Interface-MabiYama` e

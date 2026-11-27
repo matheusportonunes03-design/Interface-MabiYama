@@ -1,0 +1,59 @@
+name: Atualizar previsão m07
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dados/tratados/*.parquet'
+      - 'dados/tratados/relatorio_qualidade.md'
+      - 'modelos_m07/**'
+      - '.github/workflows/previsao-m07.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: previsao-m07-main
+  cancel-in-progress: true
+
+jobs:
+  gerar:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: modelos_m07/requirements.txt
+      - name: Instalar dependências do modelo
+        run: python -m pip install -r modelos_m07/requirements.txt
+      - name: Treinar e gerar o CSV
+        run: |
+          arvore=$(git rev-parse HEAD:dados/tratados)
+          python modelos_m07/modelo_final.py --dados dados/tratados --saida "$RUNNER_TEMP/previsao" --arvore "$arvore"
+          printf 'ARVORE_BASES=%s\n' "$arvore" >> "$GITHUB_ENV"
+      - name: Publicar se as bases continuarem atuais
+        run: |
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse FETCH_HEAD:dados/tratados)" != "$ARVORE_BASES" ]; then
+            echo "O repositório já tem bases mais novas."
+            exit 0
+          fi
+          git checkout --detach FETCH_HEAD
+          cp "$RUNNER_TEMP/previsao/previsao_m07.csv" dados/previsao_m07.csv
+          cp "$RUNNER_TEMP/previsao/previsao_m07.json" dados/previsao_m07.json
+          git add dados/previsao_m07.csv dados/previsao_m07.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Atualiza a previsão m07'
+          git push origin HEAD:main
+

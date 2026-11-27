@@ -1,6 +1,7 @@
 """Versiona apenas os resultados do ETL no repositório da interface."""
 
 from base64 import b64decode, b64encode
+import json
 from pathlib import Path
 
 from github import Auth, Github, GithubException, InputGitTreeElement
@@ -69,3 +70,13 @@ class RepositorioBases:
         for nome in ARQUIVOS_TRATADOS:
             blob = self.repo.get_git_blob(arquivos[nome])
             (destino / nome).write_bytes(b64decode(blob.content))
+
+    def previsao_m07(self, versao: str) -> tuple[bytes, dict] | None:
+        """Só entrega o CSV quando o manifesto aponta para a árvore atual das bases."""
+        dados = {item.name: item.sha for item in self.repo.get_contents("dados", ref=versao)}
+        if not {"tratados", "previsao_m07.json", "previsao_m07.csv"} <= dados.keys():
+            return None
+        manifesto = json.loads(b64decode(self.repo.get_git_blob(dados["previsao_m07.json"]).content))
+        if manifesto["arvore_bases"] != dados["tratados"]:
+            return None
+        return b64decode(self.repo.get_git_blob(dados["previsao_m07.csv"]).content), manifesto

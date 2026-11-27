@@ -60,6 +60,14 @@ def _repositorio():
     return RepositorioBases(token) if token else None
 
 
+@st.cache_data(ttl=20, show_spinner=False)
+def previsao_atualizada():
+    repositorio = _repositorio()
+    if repositorio is None:
+        return None
+    return repositorio.previsao_m07(repositorio.versao_atual())
+
+
 @st.cache_resource(max_entries=2, show_spinner="Carregando as bases compartilhadas…")
 def _lote(versao: str, _repositorio: RepositorioBases):
     pasta = TemporaryDirectory(prefix="mabiyama_tratados_")
@@ -375,6 +383,8 @@ def _barra_origem(repositorio, versao, pasta):
                 mensagem += " Arquivos com linhas descartadas: " + ", ".join(resumo["rejeitados"]) + "."
         st.success(mensagem)
         st.link_button("Ver commit no GitHub", f"{URL_REPOSITORIO}/commit/{commit}")
+        previsao_atualizada.clear()
+        st.caption("O m07 é executado em segundo plano. Quando terminar, o CSV ficará disponível em Enviar dados do dia.")
 
 
 def pagina_dados():

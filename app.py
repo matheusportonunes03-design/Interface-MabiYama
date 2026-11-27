@@ -391,11 +391,10 @@ ENVIO_AJUDA = """**Formato do arquivo**: CSV separado por vírgula, com cabeçal
 | `id` | máquina e dia de referência: `Mxxx_AAAA-MM-DD` (ex.: `M010_2023-12-30`) |
 | `peca_A` … `peca_D` | escore de risco de cada peça falhar **até as 06:00 do dia seguinte** ao do `id` |
 
-- **Uma linha por máquina por dia.** Pode ser um dia só ou vários; o arquivo padrão tem as 92 máquinas × 92 dias
-  (30/09 a 30/12/2023) = 8.464 linhas. Máquinas de `M001` a `M092`.
+- **Uma linha por máquina por dia.** O arquivo pode conter um dia ou vários, com os IDs das máquinas disponíveis.
 - **Escores**: números com ponto decimal (de 0 a 1, como na submissão do Kaggle). Vale a **ordem**: o painel ordena os escores de
-  cada peça e converte a posição em probabilidade pela calibração da validação temporal. O **menor valor de cada coluna** conta
-  como "fora da janela de risco" (probabilidade 0), então use um piso (ex.: `0.00001`) para as peças sem risco.
+  cada peça e converte a posição em probabilidade pela calibração da validação temporal. Escores de até `0.00001`
+  representam peças fora da janela de risco.
 - O que muda: alerta das 5 máquinas, fila de prioridades, tanques, exportação, risco na aba Máquinas e o top 5 do Floco.
   Métricas de validação, replay e simulador continuam os da validação temporal.
 - Vale **só nesta sessão** (nada é gravado no repositório). "Voltar à previsão padrão" desfaz.
@@ -413,6 +412,8 @@ def validar_envio(df: pd.DataFrame) -> list[str]:
     if falta:
         erros.append(f"faltam as colunas {', '.join(falta)} (cabeçalho lido: {', '.join(map(str, df.columns[:8]))})")
         return erros
+    if df.empty:
+        return ["o CSV precisa conter pelo menos uma linha de previsão"]
     ruim = ~df["id"].astype(str).str.fullmatch(r"M\d{3}_\d{4}-\d{2}-\d{2}")
     if ruim.any():
         erros.append(f"{int(ruim.sum())} linha(s) com `id` fora do formato Mxxx_AAAA-MM-DD (ex.: {df.loc[ruim, 'id'].astype(str).iloc[0]!r})")
@@ -430,8 +431,24 @@ def popover_envio():
     st.markdown(ENVIO_AJUDA)
     st.caption("Exemplo (3 linhas):")
     st.code(ENVIO_EXEMPLO, language="text")
-    st.download_button("Baixar modelo (previsão atual, 8.464 linhas)", (DADOS / "previsao.csv").read_bytes(), file_name="modelo_previsao.csv",
-                       mime="text/csv", key="envio_modelo")
+    try:
+        previsao_m07 = paginas.previsao_atualizada()
+    except Exception:
+        previsao_m07 = None
+        st.caption("A consulta da previsão atualizada está temporariamente indisponível.")
+    if previsao_m07:
+        csv_m07, manifesto = previsao_m07
+        st.download_button("Baixar CSV atualizado do m07", csv_m07, file_name="previsao_m07.csv",
+                           mime="text/csv", key="envio_modelo")
+        st.caption(f"{manifesto['linhas']} linhas · {manifesto['inicio']} a {manifesto['fim']}")
+    else:
+        st.caption("O CSV atualizado aparece aqui quando o processamento das bases atuais terminar.")
+        st.link_button("Acompanhar geração do m07", f"{paginas.URL_REPOSITORIO}/actions/workflows/previsao-m07.yml")
+        if st.button("Verificar previsão atualizada", key="envio_verificar"):
+            paginas.previsao_atualizada.clear()
+            st.rerun()
+        st.download_button("Baixar CSV da previsão padrão", (DADOS / "previsao.csv").read_bytes(),
+                           file_name="modelo_previsao.csv", mime="text/csv", key="envio_modelo")
     arq = st.file_uploader("Arquivo CSV", type="csv", key="envio_arq")
     if arq is not None:
         try:

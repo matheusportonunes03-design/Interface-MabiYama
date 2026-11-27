@@ -51,8 +51,7 @@ def previsao_longa(sub: pd.DataFrame, val: pd.DataFrame) -> pd.DataFrame:
     sub["dia"] = pd.to_datetime(sub["dia"])
     lg = sub.melt(id_vars=["id_maquina", "dia"], value_vars=PECAS, var_name="peca", value_name="score")
     x, y = curva_calibracao(val)
-    piso = lg.groupby("peca")["score"].transform("min")
-    cand = lg["score"] > piso + 1e-12
+    cand = lg["score"] > 1e-5
     lg["prob"] = 0.0
     pct = lg.loc[cand].groupby("peca")["score"].rank(pct=True)
     lg.loc[cand, "prob"] = np.interp(pct.values, x, y)
