@@ -48,6 +48,24 @@ Vindos do modelo:
 | validacao.csv | escores fora da amostra da sub 37, rodada nas bases tratadas, nas 3 janelas de validação temporal |
 | importancia.csv | importância das variáveis do ExtraTrees "hat" da sub 37, treinado nas bases tratadas |
 
+### Tratamento das bases brutas (`ETL/`) e botão "Atualizar com bases brutas"
+`ETL/` é o tratamento final da Etapa 2, copiado do repositório da equipe (`2026-2-t2-Equipe-05/ETL`). Rodado sobre as bases
+brutas do cliente, reproduz célula a célula as 7 tabelas de `dados/tratados/` (conferido em 27/11/2026):
+```bash
+python ETL/integracao.py --dados <pasta com extraídos/>     # grava <pasta>/tratados/*_corrigido.csv, a base integrada e o relatório
+python preparar_dados.py --bases <pasta>/tratados --so-tabelas   # converte para os .parquet do painel
+```
+Única mudança em relação ao repositório da equipe: `comum.dia_primeiro` decide pelos próprios dados se as datas fora do ISO
+estão em dia/mês/ano ou mês/dia/ano (o Excel em inglês salva `10/1/2022 6:00`; antes isso virava 10 de janeiro).
+
+Na aba **Dados tratados**, o botão **Atualizar com bases brutas** recebe os 6 CSVs brutos (`atualizar_bases.py`): reconhece cada
+base pelo cabeçalho, roda o ETL num processo separado (~1 a 2 min, ~1 GB de pico), converte para Parquet e troca as tabelas da
+aba e da ficha das máquinas **só na sessão de quem enviou** (os arquivos ficam em `/tmp` do servidor e são apagados depois de
+1 dia). "Voltar às bases do projeto" desfaz. Os gráficos da Análise Exploratória e a previsão continuam os do projeto.
+
+`ferramentas/integracao.py` é uma reimplementação só da etapa de integração (lê os `*_corrigido` em CSV ou Parquet), também
+conferida contra a base integrada; o caminho oficial é `ETL/integracao.py`.
+
 ## Observações
 - As probabilidades exibidas vêm do percentil do escore entre as linhas candidatas, convertido pela taxa de falha
   observada na validação temporal. São aproximadas: a submissão é um ranking, não uma probabilidade.

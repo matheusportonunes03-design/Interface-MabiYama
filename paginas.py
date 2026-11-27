@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+import atualizar_bases
 import tema
 
 RAIZ = Path(__file__).resolve().parent
@@ -45,23 +46,33 @@ DESC_COL = {
 
 
 # ------------------------------------------------------------------ carga (uma cópia por servidor, sem copiar a cada rerun)
-@st.cache_resource(show_spinner="Carregando a base…")
-def tabela(nome: str) -> pd.DataFrame:
-    d = pd.read_parquet(TRAT / f"{nome}.parquet")
+def pasta() -> Path:
+    """Pasta das bases tratadas desta sessão: a das bases enviadas pelo usuário, se houver; senão a do repositório."""
+    p = st.session_state.get("trat_dir")
+    return Path(p) if p and Path(p).exists() else TRAT
+
+
+@st.cache_resource(max_entries=16, show_spinner="Carregando a base…")
+def _tabela(p: str, nome: str) -> pd.DataFrame:
+    d = pd.read_parquet(Path(p) / f"{nome}.parquet")
     c = TABELAS[nome]["data"]
     if c:
         d[c] = pd.to_datetime(d[c])
     return d
 
 
+def tabela(nome: str) -> pd.DataFrame:
+    return _tabela(str(pasta()), nome)
+
+
 def disponivel() -> bool:
-    return TRAT.exists() and any(TRAT.glob("*.parquet"))
+    return pasta().exists() and any(pasta().glob("*.parquet"))
 
 
 @st.cache_data(show_spinner=False)
-def relatorio_secao(nome: str) -> str:
+def relatorio_secao(nome: str, p: str) -> str:
     """Trecho do relatório de qualidade do ETL referente à tabela (seção '## <tabela>')."""
-    f = TRAT / "relatorio_qualidade.md"
+    f = Path(p) / "relatorio_qualidade.md"
     if not f.exists():
         return ""
     chave = nome.replace("_corrigido", "").replace("base_integrada_maquina_dia", "integracao")
@@ -73,8 +84,8 @@ def relatorio_secao(nome: str) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def dicionario(nome: str) -> pd.DataFrame:
-    d = tabela(nome)
+def dicionario(nome: str, p: str) -> pd.DataFrame:
+    d = _tabela(p, nome)
     linhas = []
     for c in d.columns:
         s = d[c]
@@ -110,6 +121,12 @@ def _css():
       .st-key-pg [data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: .5rem; }
       .st-key-pg .stDownloadButton button, .st-key-pg .stButton button { background: var(--brand) !important; color: var(--primary-foreground) !important; border: 0 !important; }
       .st-key-pg .stDownloadButton button:hover, .st-key-pg .stButton button:hover { background: var(--brand-solid, var(--brand-deep)) !important; }
+      .st-key-dt_origem { background: var(--card); border: 1px solid var(--border); border-radius: .75rem; padding: .5rem .75rem; gap: .5rem !important; flex-wrap: wrap; }
+      .st-key-dt_origem > div:first-child { flex: 1 1 18rem; }
+      .st-key-dt_origem .origem { font-size: .875rem; color: var(--muted-foreground); display: flex; align-items: center; gap: .5rem; }
+      .st-key-dt_origem .origem b { color: var(--foreground); }
+      .st-key-dt_origem .pt { width: .55rem; height: .55rem; border-radius: 50%; background: var(--muted-foreground); flex: none; }
+      .st-key-dt_origem .pt.on { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, .2); }
       .st-key-pg h3 { font-size: 1.1rem !important; font-weight: 800; padding-top: 1rem !important; margin: 0 !important; }
     </style>""", unsafe_allow_html=True)
 
@@ -126,8 +143,8 @@ def _sem_dados():
 
 # ------------------------------------------------------------------ aba "Dados tratados"
 @st.cache_resource(max_entries=6, show_spinner=False)
-def _recorte(nome: str, maqs: tuple, periodo: tuple, cols: tuple) -> pd.DataFrame:
-    d = tabela(nome)
+def _recorte(p: str, nome: str, maqs: tuple, periodo: tuple, cols: tuple) -> pd.DataFrame:
+    d = _tabela(p, nome)
     cfg = TABELAS[nome]
     m = pd.Series(True, index=d.index)
     if maqs:
@@ -139,8 +156,8 @@ def _recorte(nome: str, maqs: tuple, periodo: tuple, cols: tuple) -> pd.DataFram
 
 
 @st.cache_resource(max_entries=12, show_spinner="Ordenando…")
-def _ordenado(nome, maqs, periodo, cols, ordem, desc) -> pd.DataFrame:
-    f = _recorte(nome, maqs, periodo, cols)
+def _ordenado(p, nome, maqs, periodo, cols, ordem, desc) -> pd.DataFrame:
+    f = _recorte(p, nome, maqs, periodo, cols)
     if ordem:
         f = f.sort_values(ordem, ascending=not desc, kind="stable", na_position="last")
     f = f.reset_index(drop=True)
@@ -150,9 +167,9 @@ def _ordenado(nome, maqs, periodo, cols, ordem, desc) -> pd.DataFrame:
 
 
 @st.cache_resource(max_entries=12, show_spinner="Buscando…")
-def _buscar(nome, maqs, periodo, cols, ordem, desc, q: str, col: str | None) -> np.ndarray:
+def _buscar(p, nome, maqs, periodo, cols, ordem, desc, q: str, col: str | None) -> np.ndarray:
     """Posições (0..n-1) das linhas em que o valor aparece. Números: igualdade na precisão digitada; datas: mesmo dia; texto: contém."""
-    f = _ordenado(nome, maqs, periodo, cols, ordem, desc)
+    f = _ordenado(p, nome, maqs, periodo, cols, ordem, desc)
     q = q.strip()
     num = None
     try:
@@ -200,15 +217,118 @@ def _ir(linha: int):
     st.session_state.dt_linha = int(linha)
 
 
+# ------------------------------------------------------------------ envio das bases brutas (roda o ETL e troca as tabelas da sessão)
+FORMATO_BRUTAS = """Mande os **6 arquivos CSV brutos**, do jeito que o cliente entrega (separados por vírgula, com cabeçalho).
+O nome do arquivo não importa: cada um é reconhecido pelas colunas. Colunas a mais são ignoradas.
+
+| Base | Colunas obrigatórias |
+|---|---|
+""" + "\n".join(f"| {atualizar_bases.TITULOS[b]} | " + ", ".join(f"`{c}`" for c in cols) + " |" for b, cols in atualizar_bases.COLUNAS.items()) + """
+
+Datas podem vir em ISO (`2023-05-04 06:00:00`), dia/mês/ano ou mês/dia/ano (como o Excel salva): a ordem é detectada pelos dados.
+Números com vírgula decimal, nomes com acento ou caixa diferente, sentinelas -999 e linhas duplicadas são tratados pelo ETL,
+como descrito no relatório de qualidade. A manutenção também pode vir com uma coluna por peça (`peca_A` … `peca_D` = 0/1)."""
+
+
+def _ao_terminar(destino, resumo):
+    st.session_state.trat_dir = str(destino)
+    st.session_state.trat_resumo = resumo
+    st.session_state.trat_msg = True
+    st.session_state.brutas_v = st.session_state.get("brutas_v", 0) + 1     # fecha o popover e limpa o envio
+    for k in [k for k in st.session_state if k.startswith(("dt_", "fm_"))]:
+        del st.session_state[k]
+
+
+def _voltar_bases():
+    for k in ("trat_dir", "trat_resumo", "trat_msg"):
+        st.session_state.pop(k, None)
+    st.session_state.brutas_v = st.session_state.get("brutas_v", 0) + 1
+    for k in [k for k in st.session_state if k.startswith(("dt_", "fm_"))]:
+        del st.session_state[k]
+
+
+def _popover_brutas():
+    st.markdown("**Atualizar com bases brutas.** O painel roda o mesmo tratamento da Etapa 2 (`ETL/integracao.py`) e troca as "
+                "tabelas desta aba e da ficha das máquinas pelas novas. Vale só para a sua sessão: o repositório não muda.")
+    with st.expander("Formato dos arquivos"):
+        st.markdown(FORMATO_BRUTAS)
+    arqs = st.file_uploader("Bases brutas (6 arquivos .csv)", type="csv", accept_multiple_files=True,
+                            key=f"brutas_arqs_{st.session_state.get('brutas_v', 0)}")
+    if not arqs:
+        st.caption("Leva cerca de 1 a 2 minutos depois do envio (a telemetria tem ~1 milhão de linhas).")
+        return
+    bases, problemas = atualizar_bases.identificar([(a.name, a.getvalue()) for a in arqs])
+    lista = " · ".join(("✓ " if b in bases else "✗ ") + atualizar_bases.TITULOS[b] for b in atualizar_bases.COLUNAS)
+    st.markdown(f'<div class="lb-info">{lista}</div>', unsafe_allow_html=True)
+    for p in problemas:
+        st.error(p)
+    if problemas or len(bases) < len(atualizar_bases.COLUNAS):
+        return
+    if st.button("Tratar e atualizar as tabelas", key="brutas_ir", type="primary", width="stretch"):
+        barra = st.progress(0.0, text="Começando o tratamento…")
+
+        def aviso(etapa, i, n):
+            nome = "Integração (máquina × dia)" if etapa == "integracao" else atualizar_bases.TITULOS[etapa]
+            barra.progress(i / (n + 1), text=f"Tratando: {nome} ({i + 1} de {n})")
+        try:
+            destino, resumo = atualizar_bases.rodar(bases, aviso)
+        except Exception as e:
+            barra.empty()
+            msg = str(e)
+            st.error(msg.split("\n\n")[0])
+            if "\n\n" in msg:
+                with st.expander("Últimas linhas do tratamento"):
+                    st.code(msg.split("\n\n", 1)[1], language="text")
+            return
+        barra.progress(1.0, text="Pronto")
+        _ao_terminar(destino, resumo)
+        st.rerun()
+
+
+def _barra_origem():
+    r = st.session_state.get("trat_resumo") if pasta() != TRAT else None
+    with st.container(key="dt_origem", horizontal=True, vertical_alignment="center"):
+        if r:
+            st.markdown(f'<div class="origem"><span class="pt on"></span><span><b>Bases enviadas por você</b> em {r["quando"]}, '
+                        'tratadas agora pelo ETL da equipe.</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="origem"><span class="pt"></span><span><b>Bases do projeto</b>, tratadas pela equipe na Etapa 2.</span></div>',
+                        unsafe_allow_html=True)
+        with st.popover("Atualizar com bases brutas", icon=":material/upload_file:", key=f"brutas_pop_{st.session_state.get('brutas_v', 0)}"):
+            _popover_brutas()
+        if r:
+            rel = pasta() / "relatorio_qualidade.md"
+            if rel.exists():
+                st.download_button("Relatório de qualidade", rel.read_bytes(), file_name="relatorio_qualidade.md", mime="text/markdown",
+                                   key="dt_rel", icon=":material/download:")
+            st.button("Voltar às bases do projeto", key="dt_voltar", on_click=_voltar_bases, icon=":material/undo:")
+    if r and st.session_state.pop("trat_msg", False):
+        ref = {n: pq_linhas(TRAT / f"{n}.parquet") for n in r["linhas"]}
+        partes = [f"{TABELAS[n]['titulo']}: {v:,}".replace(",", ".") + (f" ({v - ref[n]:+,})".replace(",", ".") if ref.get(n) is not None and v != ref[n] else "")
+                  for n, v in r["linhas"].items() if n in TABELAS]
+        st.success("Bases tratadas e atualizadas. Linhas por tabela (entre parênteses, a diferença para as bases do projeto): "
+                   + " · ".join(partes) + (". Linhas rejeitadas (sem data ou máquina válida) ficaram de fora: "
+                                           + ", ".join(r["rejeitados"]) if r["rejeitados"] else "."))
+
+
+def pq_linhas(caminho: Path):
+    try:
+        import pyarrow.parquet as pq
+        return pq.ParquetFile(caminho).metadata.num_rows
+    except Exception:
+        return None
+
+
 def pagina_dados():
     with st.container(key="pg"):
         _css()
         st.markdown('<p class="pg-tit">Bases tratadas</p><p class="pg-sub">As tabelas completas que saíram do tratamento da Etapa 2 e alimentam '
                     'o modelo. Filtre aqui; navegue até uma linha, coluna ou célula pela barra lateral.</p>', unsafe_allow_html=True)
+        _barra_origem()
         if not disponivel():
             _sem_dados()
             return
-        nomes = [n for n in TABELAS if (TRAT / f"{n}.parquet").exists()]
+        nomes = [n for n in TABELAS if (pasta() / f"{n}.parquet").exists()]
         nome = st.segmented_control("Tabela", nomes, format_func=lambda n: TABELAS[n]["titulo"], default=nomes[0], key="dt_tab",
                                     label_visibility="collapsed") or nomes[0]
         d = tabela(nome)
@@ -223,7 +343,7 @@ def pagina_dados():
             ini, fim = d[cfg["data"]].min().date(), d[cfg["data"]].max().date()
             periodo = c2.date_input("Período", (ini, fim), min_value=ini, max_value=fim, format="DD/MM/YYYY", key=f"dt_per_{nome}")
         cols = c3.multiselect("Colunas", list(d.columns), key=f"dt_cols_{nome}", placeholder="Todas as colunas")
-        chave = (nome, tuple(sel_maq), tuple(periodo or ()) if periodo and len(periodo) == 2 else (), tuple(cols))
+        chave = (str(pasta()), nome, tuple(sel_maq), tuple(periodo or ()) if periodo and len(periodo) == 2 else (), tuple(cols))
 
         # ---------------- navegação na barra lateral
         if st.session_state.get("dt_rec") != chave:            # recorte mudou: volta ao topo
@@ -322,9 +442,9 @@ def pagina_dados():
                 else:
                     st.download_button("Baixar CSV do recorte", st.session_state.dt_csv, file_name=f"{nome}_recorte.csv", mime="text/csv")
         with t2:
-            st.dataframe(dicionario(nome), hide_index=True, width="stretch", height=min(38 * (len(d.columns) + 1), 640))
+            st.dataframe(dicionario(nome, str(pasta())), hide_index=True, width="stretch", height=min(38 * (len(d.columns) + 1), 640))
         with t3:
-            txt = relatorio_secao(nome)
+            txt = relatorio_secao(nome, str(pasta()))
             st.markdown(txt if txt else "_Sem seção específica no relatório de qualidade para esta tabela._")
 
 
