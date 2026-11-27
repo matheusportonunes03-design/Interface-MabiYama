@@ -49,12 +49,22 @@ function htmlSw(chave, lista) {
 }
 function abrirPerso() {
   if (PZ) return;
+  PZ = painelPerso(null);
+}
+/* painel embutido na página (aba Perfil): o motor procura o marcador .mby-perso-inline e monta aqui dentro */
+function montarPersoInline() {
+  var ph = D.querySelector('.mby-perso-inline');
+  if (!ph || ph.__pz) return;
+  ph.__pz = painelPerso(ph);
+}
+function painelPerso(alvo) {
+  var inline = !!alvo;
   if (!PERSO) carregarPerso();
   var rasc = JSON.parse(JSON.stringify(PERSO)), giro = 0, dirs = ['s', 'se', 'ne', 'nw', 'sw'], andando = true, epi = true;
-  var el = D.createElement('div'); el.className = 'mby-pz';
+  var el = D.createElement('div'); el.className = inline ? 'mby-pz mby-pz-inline' : 'mby-pz';
   el.innerHTML =
     '<div class="mby-pz-card" role="dialog" aria-modal="true" aria-label="Personalizar operário">' +
-    '<div class="mby-pz-cab"><div><b>Personalize o seu operário</b><span>Fica salvo neste navegador.</span></div><button type="button" class="mby-x" data-a="cancelar" aria-label="Fechar">×</button></div>' +
+    '<div class="mby-pz-cab"><div><b>Personalize o seu operário</b><span>Fica salvo neste navegador.</span></div>' + (inline ? '<em class="mby-pz-ok" aria-live="polite"></em>' : '<button type="button" class="mby-x" data-a="cancelar" aria-label="Fechar">×</button>') + '</div>' +
     '<div class="mby-pz-corpo">' +
     '<div class="mby-pz-prev"><div class="mby-pz-palco"><canvas></canvas><span class="mby-pz-nome"></span></div>' +
     '<div class="mby-pz-giro"><button type="button" data-g="-1" aria-label="Girar para a esquerda">◀</button><span>Girar</span><button type="button" data-g="1" aria-label="Girar para a direita">▶</button></div>' +
@@ -67,8 +77,9 @@ function abrirPerso() {
     '<div class="mby-pz-grade">' + PERSO_GRUPOS.map(function (g) { return '<div class="mby-pz-l">' + g[0] + htmlSw(g[1], PERSO_OP[g[1]]) + '</div>'; }).join('') + '</div>' +
     '</div></div>' +
     '<div class="mby-pz-pe"><button type="button" class="sec" data-a="sortear">Sortear</button><button type="button" class="sec" data-a="padrao">Restaurar padrão</button><i></i>' +
-    '<button type="button" class="sec" data-a="cancelar">Cancelar</button><button type="button" class="pri" data-a="salvar">Salvar</button></div></div>';
-  raiz.appendChild(el);
+    (inline ? '<button type="button" class="sec" data-a="desfazer">Desfazer</button>' : '<button type="button" class="sec" data-a="cancelar">Cancelar</button>') +
+    '<button type="button" class="pri" data-a="salvar">Salvar</button></div></div>';
+  if (inline) { alvo.innerHTML = ''; alvo.appendChild(el); } else raiz.appendChild(el);
   var cvp = el.querySelector('canvas'), cp = cvp.getContext('2d'), nomeEl = el.querySelector('.mby-pz-nome'), inp = el.querySelector('input[data-k="nome"]');
   var dpr = Math.min(2, Wn.devicePixelRatio || 1), CW = 230, CH = 270;
   cvp.width = CW * dpr; cvp.height = CH * dpr; cvp.style.width = CW + 'px'; cvp.style.height = CH + 'px';
@@ -93,20 +104,26 @@ function abrirPerso() {
     PERSO_GRUPOS.forEach(function (g) { v[g[1]] = pick(PERSO_OP[g[1]]); });
     if (rasc.nome === 'Beto' || rasc.nome === 'Bia') rasc.nome = v.sexo === 'f' ? 'Bia' : 'Beto';
   }
-  function fechar(salvar) {
-    if (salvar) {
-      rasc.nome = (inp.value || '').trim().slice(0, 16) || (rasc.visual.sexo === 'f' ? 'Bia' : 'Beto');
-      PERSO = rasc; try { localStorage.setItem(PERSO_CHAVE, JSON.stringify(PERSO)); } catch (e) { }
-      aplicarPerso(op); if (S.dlg) { var n = S.dlg.el.querySelector('.op .mby-n'); if (n) n.textContent = nomeOp(); }
+  function salvar() {
+    rasc.nome = (inp.value || '').trim().slice(0, 16) || (rasc.visual.sexo === 'f' ? 'Bia' : 'Beto');
+    PERSO = JSON.parse(JSON.stringify(rasc)); try { localStorage.setItem(PERSO_CHAVE, JSON.stringify(PERSO)); } catch (e) { }
+    aplicarPerso(op); if (S.dlg) { var n = S.dlg.el.querySelector('.op .mby-n'); if (n) n.textContent = nomeOp(); }
+  }
+  function fechar(sv) {
+    if (sv) salvar();
+    if (inline) {   // embutido: não fecha; avisa que salvou
+      if (sv) { var ok = el.querySelector('.mby-pz-ok'); ok.textContent = 'Salvo ✓'; ok.classList.add('on'); clearTimeout(ok.__t); ok.__t = setTimeout(function () { ok.classList.remove('on'); }, 1800); marcar(); }
+      return;
     }
-    cancelAnimationFrame(PZ.raf); D.removeEventListener('keydown', PZ.tecla, true);
+    cancelAnimationFrame(inst.raf); D.removeEventListener('keydown', inst.tecla, true);
     el.classList.remove('on'); setTimeout(function () { el.remove(); }, 220); PZ = null;
   }
   el.addEventListener('click', function (ev) {
     var t = ev.target;
-    if (t === el) return fechar(false);
+    if (t === el && !inline) return fechar(false);
     var a = t.closest('[data-a]'); if (a) { var ac = a.getAttribute('data-a');
       if (ac === 'salvar') return fechar(true); if (ac === 'cancelar') return fechar(false);
+      if (ac === 'desfazer') { carregarPerso(); rasc = JSON.parse(JSON.stringify(PERSO)); ator.visual = rasc.visual; marcar(); return; }
       if (ac === 'sortear') sortear(); if (ac === 'padrao') rasc = persoPadrao(rasc.visual.sexo); ator.visual = rasc.visual; marcar(); return; }
     var g = t.closest('[data-g]'); if (g) { giro = (giro + +g.getAttribute('data-g') + dirs.length) % dirs.length; return; }
     var b = t.closest('.mby-pz-seg button, .mby-pz-sw button');
@@ -132,12 +149,13 @@ function abrirPerso() {
   el.addEventListener('change', function (ev) {
     var t = ev.target.getAttribute('data-t'); if (t === 'andar') andando = ev.target.checked; if (t === 'epi') epi = ev.target.checked;
   });
-  var tecla = function (e) { if (e.key === 'Escape') { e.stopPropagation(); fechar(false); } else if (e.key === 'Enter' && e.target === inp) fechar(true); };
-  D.addEventListener('keydown', tecla, true);
+  var tecla = function (e) { if (e.key === 'Escape' && !inline) { e.stopPropagation(); fechar(false); } else if (e.key === 'Enter' && e.target === inp) fechar(true); };
+  if (inline) inp.addEventListener('keydown', tecla); else D.addEventListener('keydown', tecla, true);
 
   var t0 = performance.now();
   function quadroPz(t) {
-    PZ.raf = requestAnimationFrame(quadroPz);
+    if (inline && !el.isConnected) { if (alvo) alvo.__pz = null; return; }
+    inst.raf = requestAnimationFrame(quadroPz);
     var dt = Math.min(.05, (t - t0) / 1000); t0 = t;
     ator.t += dt; ator.andando = andando; if (andando) ator.fase += dt * 9.5; ator.dir = dirs[giro]; ator.fala = false;
     ator.eq = epi ? { capacete: true, colete: true, luvas: true, oculos: true, ferr: true, caixa: true } : {};
@@ -148,7 +166,8 @@ function abrirPerso() {
     G.ctx = cp; try { operador(ator, CW / 2, CH - 52, 4.7); } catch (e) { }
     G.ctx = salvo; K = sk[0]; BX = sk[1]; BY = sk[2];
   }
-  PZ = { el: el, raf: 0, tecla: tecla };
-  marcar(); PZ.raf = requestAnimationFrame(quadroPz);
-  requestAnimationFrame(function () { el.classList.add('on'); setTimeout(function () { try { inp.focus({ preventScroll: true }); inp.select(); } catch (e) { } }, 60); });
+  var inst = { el: el, raf: 0, tecla: tecla };
+  marcar(); inst.raf = requestAnimationFrame(quadroPz);
+  requestAnimationFrame(function () { el.classList.add('on'); if (!inline) setTimeout(function () { try { inp.focus({ preventScroll: true }); inp.select(); } catch (e) { } }, 60); });
+  return inst;
 }

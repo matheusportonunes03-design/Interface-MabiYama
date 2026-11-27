@@ -348,11 +348,21 @@ def _risco_longo(previsao: pd.DataFrame) -> pd.DataFrame:
 
 
 def _set_maq(m):
+    """Escolhe a máquina; se ela estiver fora dos filtros da barra lateral, os filtros são limpos para ela aparecer lá também."""
+    if m not in st.session_state.get("_fm_ids", [m]):
+        st.session_state.fm_linhas, st.session_state.fm_modelos = [], []
     st.session_state.ficha_maq = m
 
 
+def _ordem_pg():
+    """Clicar de novo na ordem já escolhida não desmarca: mantém a anterior."""
+    if st.session_state.get("fm_ordem_pg") is None:
+        st.session_state.fm_ordem_pg = st.session_state.get("_fm_ordem_ult", "Nº da máquina")
+    st.session_state._fm_ordem_ult = st.session_state.fm_ordem_pg
+
+
 def _sync_pg():
-    st.session_state.ficha_maq = st.session_state.ficha_maq_pg
+    _set_maq(st.session_state.ficha_maq_pg)
 
 
 def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
@@ -424,12 +434,21 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
             st.markdown('<div style="height:.75rem"></div>', unsafe_allow_html=True)
         st.markdown(f'<p class="pg-tit">Ficha da máquina {m}</p><p class="pg-sub">Cadastro, risco previsto no período de teste, histórico de falhas e '
                     'manutenções e o comportamento dos sensores. Troque de máquina aqui ou pela barra lateral.</p>', unsafe_allow_html=True)
+        # seletor da página: a frota inteira (sem os filtros da barra lateral), na ordem escolhida aqui
+        todas = list(maq["id_maquina"])
+        st.session_state.setdefault("fm_ordem_pg", "Nº da máquina")
+        ord_pg = st.session_state.get("fm_ordem_pg") or "Nº da máquina"
+        todas.sort(key=(lambda x: x) if ord_pg == "Nº da máquina" else (lambda x: (-risco_max.get(x, 0), x)))
+        rot_todas = {x: f"{x} · {risco_max.get(x, 0):.0f}% · {nfal.get(x, 0)} falhas" for x in todas}
+        kp = todas.index(m)
         st.session_state.ficha_maq_pg = m
+        st.session_state["_fm_ids"] = ids
         with st.container(key="fm_escolha", horizontal=True, vertical_alignment="bottom"):
-            st.selectbox("Máquina", ids, key="ficha_maq_pg", format_func=rot.get, on_change=_sync_pg, width=320)
-            st.button("◀ Anterior", key="fm_ant_pg", disabled=k == 0, on_click=_set_maq, args=(ids[max(0, k - 1)],))
-            st.button("Próxima ▶", key="fm_prox_pg", disabled=k == len(ids) - 1, on_click=_set_maq, args=(ids[min(len(ids) - 1, k + 1)],))
-            st.markdown(f'<p class="pg-sub" style="margin:0 0 .55rem">{k + 1}ª de {len(ids)} · ordem “{ordem.lower()}”</p>', unsafe_allow_html=True)
+            st.selectbox(f"Máquina · {len(todas)} na frota", todas, key="ficha_maq_pg", format_func=rot_todas.get, on_change=_sync_pg, width=300)
+            st.segmented_control("Ordem", ["Nº da máquina", "Risco de falha"], key="fm_ordem_pg", on_change=_ordem_pg)
+            st.button("◀ Anterior", key="fm_ant_pg", disabled=kp == 0, on_click=_set_maq, args=(todas[max(0, kp - 1)],))
+            st.button("Próxima ▶", key="fm_prox_pg", disabled=kp == len(todas) - 1, on_click=_set_maq, args=(todas[min(len(todas) - 1, kp + 1)],))
+            st.markdown(f'<p class="pg-sub" style="margin:0 0 .55rem">{kp + 1}ª de {len(todas)} · {ord_pg.lower()}</p>', unsafe_allow_html=True)
         _cartoes([("Modelo", (lambda t: t[:1].upper() + t[1:])(str(info.get("modelo", "–")).replace("_", " "))), ("Idade", f"{info.get('idade', np.nan):.0f} anos" if pd.notna(info.get("idade")) else "–"),
                   ("Fabricante", info.get("fabricante", "–")), ("Planta", info.get("planta", "–")), ("Linha", info.get("linha_producao", "–")),
                   ("Potência", f"{info.get('potencia_kw'):.0f} kW" if pd.notna(info.get("potencia_kw")) else "–"),

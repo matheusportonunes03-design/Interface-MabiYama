@@ -76,7 +76,9 @@ insight de cada um. Para trocar um gráfico, substitua o `.webp` com o mesmo nom
 
 ## Aba "Máquinas" (ficha da máquina)
 
-Escolha uma máquina no seletor do topo da ficha (com ◀ Anterior / Próxima ▶) ou na barra lateral; os dois ficam sincronizados. A ficha mostra:
+Escolha uma máquina no seletor do topo da ficha ou na barra lateral; os dois ficam sincronizados. O seletor da página lista as
+92 máquinas (sem os filtros da barra lateral), em ordem de **número** ou de **risco de falha**, com ◀ Anterior / Próxima ▶; se a
+máquina escolhida estiver fora dos filtros da barra lateral, esses filtros são limpos. A ficha mostra:
 - **Cadastro:** modelo, idade, fabricante, planta, linha e potência.
 - **Risco previsto no período de teste:** cada círculo é um dia de grade da peça; o tamanho e o número mostram a probabilidade de falha.
 - **Histórico:** falhas por peça, última preventiva e próxima data de grade de cada peça, erros por código.
@@ -171,3 +173,33 @@ Arquivos:
   Clicar no diálogo mostra o texto inteiro na hora.
 - Os ajudantes somem no Perfil e em telas estreitas (área do conteúdo abaixo de 760 px). Com `prefers-reduced-motion`, a cena é pulada.
 - Velocidade da cena: `RITMO` no topo de `animacao.py`.
+
+
+## Enviar dados do dia (botão no cabeçalho)
+Abre um campo para enviar um CSV no formato da submissão do Kaggle (`id,peca_A,peca_B,peca_C,peca_D`, com `id` = `Mxxx_AAAA-MM-DD`
+e as probabilidades de 0 a 1). O arquivo é lido por `painel_dados.montar` e passa a valer **só nesta sessão**: alerta das 5
+máquinas, fila de prioridades, tanques, filtros, exportação, risco da aba Máquinas e o top 5 que o Floco anuncia. Indicadores
+de validação (AUC-PR, recall, curvas, replay e simulador) continuam os da validação temporal. "Voltar à previsão padrão" desfaz.
+Nada é gravado no repositório: ao sair ou recarregar a página, volta a previsão padrão (`dados/previsao.csv`).
+
+## Animação de entrada das abas
+Ao abrir uma aba, os blocos surgem em cascata. Nas páginas em iframe (`frontend/entrada.js`): cada bloco sobe e aparece quando
+chega à tela, e cartões com barra colorida na lateral (o aviso "Atenção", os indicadores, os cartões dos gráficos) nascem da barra
+e deslizam para a direita, com o conteúdo vindo atrás. Nas páginas nativas (Máquinas, Dados tratados, Simulador, Perfil) e na
+parte da barra lateral que muda de aba para aba, `app.py` (`entrada_da_aba`) emite o CSS de entrada só na primeira execução da
+aba. Mexer num filtro ou trocar de máquina não repete a animação; na primeira entrada ela espera a cena do Beto terminar.
+
+## Simulador: controles na página
+Cenário pronto, período, cenários de Monte Carlo, peças e linhas aparecem num cartão no topo da página e também na barra lateral;
+os dois conjuntos ficam sincronizados (chaves `*_pg` copiadas para as da barra lateral).
+
+## Perfil: personalização do operário
+A aba Perfil tem o mesmo painel de personalização do botão "Personalizar", embutido na página (o motor da animação monta o painel
+no marcador `.mby-perso-inline`). "Salvar" grava no navegador; "Desfazer" volta ao último salvo.
+
+## Logo animada (`logo_animado.py`)
+Na tela de entrada e no topo da barra lateral: a água entra ondulando, a engrenagem cai do céu girando, quica e respinga, a bomba
+sobe de dentro da água (com respingos e as gotas saltando), o nome aparece num corte da esquerda para a direita e o slogan sobe;
+depois a engrenagem gira devagar, a água balança e a bomba boia. A engrenagem é vetorial (para girar inteira); as outras partes
+são recortes da logo em alta resolução em `static/logo/` (versões clara e escura), servidos pelo Streamlit com
+`enableStaticServing = true` (`.streamlit/config.toml`). Com `prefers-reduced-motion`, a logo aparece parada.

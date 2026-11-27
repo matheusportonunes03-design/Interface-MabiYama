@@ -628,6 +628,7 @@ function quadro(t) {
   E.maq.forEach(function (m) { m.mostrar += (m.alvoMostrar - m.mostrar) * Math.min(1, dt * 5); });
   if (S.modo === 'companhia') atualizarCompanhia(dt);
   desenhar(); posicionarBolhas(dt);
+  if ((S.t * 4 | 0) !== S.tPi) { S.tPi = S.t * 4 | 0; try { montarPersoInline(); } catch (e) { } }
 }
 
 

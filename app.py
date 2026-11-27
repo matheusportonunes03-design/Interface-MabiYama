@@ -18,6 +18,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 import animacao
+import logo_animado
 import painel_dados
 import paginas
 import tema
@@ -258,6 +259,7 @@ def tela_login():
         flex-wrap: wrap; align-items: flex-start !important; }}
       .st-key-entrada_esq {{ flex: 1 1 26rem; gap: 1.25rem !important; color: #eaf2ff; }}
       .st-key-entrada_esq [data-testid="stImage"] img {{ width: 330px !important; max-width: 100%; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
+      .logo-mare {{ width: 360px; max-width: 100%; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
       .mare-h1 {{ margin: .5rem 0 0 !important; font-size: 2.75rem !important; line-height: 1.1 !important; font-weight: 800; color: #fff; max-width: 36rem; }}
       .mare-p {{ margin: 0; font-size: 1.05rem !important; line-height: 1.55; color: #bcd3f5; max-width: 33rem; }}
       .mare-chips {{ display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .4rem; }}
@@ -281,7 +283,7 @@ def tela_login():
     resumo = _resumo_login()
     with st.container(key="entrada", horizontal=True):
         with st.container(key="entrada_esq"):
-            st.image(str(tema.MARCA / "logo_escuro.webp"), width=330)
+            st.markdown('<div class="logo-mare">' + logo_animado.html("escuro", "lgl") + "</div>", unsafe_allow_html=True)
             chips = ""
             if resumo:
                 ex, alto, jan = resumo
@@ -397,7 +399,7 @@ def conteudo_painel(aba, filtros):
 <body><div id="root"></div>
 <script>window.DADOS={json.dumps(d, ensure_ascii=False)};window.ABA="{aba}";window.FILTROS={json.dumps(filtros, ensure_ascii=False)};
 window.EXTRAS={json.dumps({k: v for k, v in extras().items() if k == "raiox"} if aba == "model" else {}, ensure_ascii=False)};</script>
-<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("painel.js")}</script></body></html>"""
+<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("painel.js")}</script>{entrada_js("painel")}</body></html>"""
     components.html(pagina, height=2300 if aba == "model" else 1500, scrolling=False)
 
 
@@ -434,8 +436,32 @@ def replay_frota():
 <style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
 <body><div id="root"></div>
 <script>window.EXTRAS={json.dumps({"replay": ex["replay"]}, ensure_ascii=False)};</script>
-<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("replay_pagina.js")}</script></body></html>"""
+<script>{recurso("vendor.js")}</script><script>{recurso("extras.js")}</script><script>{recurso("replay_pagina.js")}</script>{entrada_js("replay")}</body></html>"""
     components.html(pagina, height=860, scrolling=False)
+
+
+SIM_PADRAO = {"sim_cen": "Padrão", "sim_per": "Tudo", "sim_pecas": [], "sim_linhas": [], "sim_runs": 500}
+
+
+def _sim_da_pagina(k):
+    """Controle da página mudou: vale também para o da barra lateral."""
+    v = st.session_state[k + "_pg"]
+    st.session_state[k] = v if v is not None else SIM_PADRAO[k]
+
+
+def _sim_per_barra():
+    if st.session_state.get("sim_per") is None:
+        st.session_state.sim_per = "Tudo"
+
+
+def _controles_sim(linhas):
+    """Controles do simulador na barra lateral (a página tem os mesmos, com chaves *_pg sincronizadas)."""
+    st.selectbox("Cenário pronto", list(CENARIOS), key="sim_cen",
+                 help="Define o ponto de partida dos controles do simulador (limiar, equipe e premissas de custo).")
+    st.segmented_control("Período de 2023", list(PERIODOS), key="sim_per", on_change=_sim_per_barra)
+    st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="sim_pecas")
+    st.multiselect("Linhas de produção", linhas, placeholder="Todas as linhas", key="sim_linhas")
+    st.select_slider("Cenários de Monte Carlo", [200, 500, 1000, 2000], key="sim_runs")
 
 
 def pagina_simulador():
@@ -444,31 +470,61 @@ def pagina_simulador():
         st.warning("Arquivo dados/extras.json não encontrado.")
         return
     R = ex["replay"]
+    for k, v in SIM_PADRAO.items():
+        st.session_state.setdefault(k, v)
+    linhas = sorted({m["linha"] for m in R["maquinas"]})
     with st.sidebar:
         tema.secao("Simulador")
-        cen = st.selectbox("Cenário pronto", list(CENARIOS), key="sim_cen",
-                           help="Define o ponto de partida dos controles do simulador (limiar, equipe e premissas de custo).")
-        st.segmented_control("Período de 2023", list(PERIODOS), key="sim_per", default="Tudo")
-        st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="sim_pecas")
-        linhas = sorted({m["linha"] for m in R["maquinas"]})
-        st.multiselect("Linhas de produção", linhas, key="sim_linhas", placeholder="Todas as linhas")
-        runs = st.select_slider("Cenários de Monte Carlo", [200, 500, 1000, 2000], value=500, key="sim_runs")
-        per = st.session_state.get("sim_per") or "Tudo"
-        rec = _recorte_sim(R, per, st.session_state.get("sim_pecas") or [], st.session_state.get("sim_linhas") or [])
-        nf = sum(sum(e[3] for e in d["c"]) + len(d["f"]) for d in rec["porDia"])
-        nc = sum(len(d["c"]) for d in rec["porDia"])
-        st.markdown(f'<div class="lb-info">Recorte: <b>{len(rec["dias"])} dias</b> · <b>{nf} falhas</b> · '
-                    f'{nc:,} peças na janela de risco</div>'.replace(",", "."), unsafe_allow_html=True)
-    if not rec["dias"] or nf == 0:
-        st.info("O recorte escolhido na barra lateral não tem falhas. Amplie o período, as peças ou as linhas.")
-        return
+        _controles_sim(linhas)
+    cen = st.session_state.sim_cen
+    runs = st.session_state.sim_runs
+    per = st.session_state.get("sim_per") or "Tudo"
+    rec = _recorte_sim(R, per, st.session_state.get("sim_pecas") or [], st.session_state.get("sim_linhas") or [])
+    nf = sum(sum(e[3] for e in d["c"]) + len(d["f"]) for d in rec["porDia"])
+    nc = sum(len(d["c"]) for d in rec["porDia"])
+    resumo = f'Recorte: <b>{len(rec["dias"])} dias</b> · <b>{nf} falhas</b> · {nc:,} peças na janela de risco'.replace(",", ".")
+    with st.sidebar:
+        st.markdown(f'<div class="lb-info">{resumo}</div>', unsafe_allow_html=True)
+
+    st.markdown("""<style>
+      .st-key-simpg { max-width: 80rem; margin: 0 auto; padding: 1.25rem 1.5rem 0; width: 100%; }
+      .st-key-sim_ctrl { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.15rem .9rem;
+        box-shadow: var(--shadow-card, 0 1px 3px rgb(0 0 0 / .06)); gap: .65rem !important; }
+      .st-key-sim_ctrl .sim-tit { margin: 0; font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
+      .st-key-sim_ctrl .sim-res { margin: 0; font-size: .85rem; color: var(--muted-foreground); }
+      .st-key-sim_ctrl .sim-res b { color: var(--foreground); }
+      .st-key-sim_l1, .st-key-sim_l2 { gap: 1rem !important; flex-wrap: wrap; align-items: flex-end !important; }
+      .st-key-sim_l1 > div, .st-key-sim_l2 > div { flex: 1 1 15rem; min-width: 0; }
+      .st-key-sim_l1 > div:nth-child(2) { flex: 1 1 22rem; }
+    </style>""", unsafe_allow_html=True)
+    with st.container(key="simpg"):
+        with st.container(key="sim_ctrl"):
+            st.markdown('<p class="sim-tit">Recorte e premissas da simulação · também na barra lateral</p>', unsafe_allow_html=True)
+            for k in SIM_PADRAO:
+                st.session_state[k + "_pg"] = st.session_state[k]
+            with st.container(key="sim_l1", horizontal=True):
+                st.selectbox("Cenário pronto", list(CENARIOS), key="sim_cen_pg", on_change=_sim_da_pagina, args=("sim_cen",),
+                             help="Ponto de partida dos controles do simulador (limiar, equipe e premissas de custo).")
+                st.segmented_control("Período de 2023", list(PERIODOS), key="sim_per_pg", on_change=_sim_da_pagina, args=("sim_per",))
+                st.select_slider("Cenários de Monte Carlo", [200, 500, 1000, 2000], key="sim_runs_pg", on_change=_sim_da_pagina, args=("sim_runs",))
+            with st.container(key="sim_l2", horizontal=True):
+                st.pills("Peças", PECAS_NOMES, selection_mode="multi", key="sim_pecas_pg", on_change=_sim_da_pagina, args=("sim_pecas",))
+                st.multiselect("Linhas de produção", linhas, placeholder="Todas as linhas", key="sim_linhas_pg", on_change=_sim_da_pagina, args=("sim_linhas",))
+            st.markdown(f'<p class="sim-res">{resumo}</p>', unsafe_allow_html=True)
+        if not rec["dias"] or nf == 0:
+            st.info("O recorte escolhido não tem falhas. Amplie o período, as peças ou as linhas.")
+            return
+        _iframe_sim(ex, rec, cen, runs)
+
+
+def _iframe_sim(ex, rec, cen, runs):
     dados = {"replay": rec, "simul": ex["simul"]}
     pagina = f"""<!doctype html><html lang="pt-BR" class="{tema.classe_html()}"><head><meta charset="utf-8">
 <style>{recurso("fontes.css")}{recurso("painel.css")} html,body{{margin:0;background:var(--background)}}{tema.css_iframe()}</style></head>
 <body><div id="root"></div>
 <script>window.EXTRAS={json.dumps(dados, ensure_ascii=False)};window.INICIAL={json.dumps(CENARIOS[cen])};window.RUNS={runs};
 window.CENARIO={json.dumps(cen, ensure_ascii=False)};</script>
-<script>{recurso("vendor.js")}</script><script>{recurso("simulador.js")}</script></body></html>"""
+<script>{recurso("vendor.js")}</script><script>{recurso("simulador.js")}</script>{entrada_js("simulador")}</body></html>"""
     components.html(pagina, height=1900, scrolling=False)
 
 
@@ -519,6 +575,7 @@ def barra_lateral(d, aba):
                          help="Nome, sexo, pele, cabelo, roupas e cor dos EPIs do operário. Fica salvo neste navegador."):
                 animacao.personalizar()
                 st.rerun()
+        st.markdown('<span class="lb-ent"></span>', unsafe_allow_html=True)
         if aba in ("perfil", "maquinas", "dados", "sim"):
             return None
 
@@ -585,6 +642,7 @@ def tela_perfil():
       .st-key-pf_foto [data-testid="stFileUploaderDropzone"] button::after { content: "Alterar foto"; font-size: .875rem; font-weight: 500; }
       .st-key-pf_email input { color: var(--muted-foreground) !important; -webkit-text-fill-color: var(--muted-foreground); }
       .st-key-pf_email [data-testid="stTextInputRootElement"] { background: var(--secondary) !important; }
+      .st-key-pf_perso { max-width: 50rem; margin: 0 auto; padding: 0 1.5rem 3rem; width: 100%; }
       .st-key-pf_sair_box { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
     </style>""", unsafe_allow_html=True)
     aplicar({"pf_voltar": ["ico:arrow-left"], "pf_atual": ["ico:user"], "pf_salvar": ["primario", "h9", "ico:save"],
@@ -638,6 +696,12 @@ def tela_perfil():
         if st.session_state.get("msg_perfil"):
             st.markdown(f'<p role="status" style="margin-top:1rem;font-size:.875rem">{st.session_state.msg_perfil}</p>',
                         unsafe_allow_html=True)
+
+    with st.container(key="pf_perso"):
+        st.markdown('<h2 style="font-size:1.25rem;line-height:1.75rem;font-weight:800">Seu operário</h2>'
+                    '<p style="margin:.15rem 0 1rem;font-size:.875rem;color:var(--muted-foreground)">O ajudante que acompanha você no painel: '
+                    'nome, aparência, roupas e cor dos EPIs. Fica salvo neste navegador.</p>'
+                    '<div class="mby-perso-inline"><p class="mby-pi-carr">Carregando o operário…</p></div>', unsafe_allow_html=True)
         with st.container(key="pf_sair_box"):
             if st.button("Sair da conta", key="pf_sair"):
                 t = st.session_state.get("tema", "claro")
@@ -653,6 +717,7 @@ def main():
         tela_login()
         return
     aba = st.session_state.get("aba", "model")
+    entrada_da_aba(aba)
     animacao.capa()  # cobre a tela até a cena de boas-vindas abrir (só na 1ª vez / ao rever)
     d = dados_painel(st.session_state.get("previsao"))
     filtros = barra_lateral(d, aba)
@@ -676,6 +741,32 @@ def main():
         conteudo_painel(aba, filtros)
     tema.rodape_lateral()
     ajudantes(d, aba, filtros)
+
+
+ENTRADA_CSS = """<style>
+@keyframes mbyEntSobe { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes mbyEntLado { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.st-key-pg > *, .st-key-simpg > *, .st-key-pf_corpo > *, .st-key-pf_perso > *, .st-key-pf_cab_in > * {
+  animation: mbyEntSobe .62s cubic-bezier(.2,.75,.25,1) backwards; }
+[data-testid="stSidebarUserContent"] [data-testid="stElementContainer"]:has(.lb-ent) ~ * { animation: mbyEntLado .5s cubic-bezier(.2,.75,.25,1) .08s backwards; }
+@media (prefers-reduced-motion: reduce) { .st-key-pg > *, .st-key-simpg > *, .st-key-pf_corpo > *, .st-key-pf_perso > * { animation: none !important; } }
+""" + "".join(f".st-key-pg > *:nth-child({i}), .st-key-simpg > *:nth-child({i}), .st-key-pf_corpo > *:nth-child({i}), "
+              f".st-key-pf_perso > *:nth-child({i}) {{ animation-delay: {min(i - 1, 12) * .07:.2f}s; }}\n" for i in range(2, 16)) + "</style>"
+
+
+def entrada_da_aba(aba):
+    """Na primeira execução de cada aba: novo código de entrada (os iframes animam uma vez) e o CSS de entrada das páginas
+    nativas e da barra lateral. Nas execuções seguintes da mesma aba nada é reanimado."""
+    if st.session_state.get("_ent_aba") != aba:
+        st.session_state._ent_aba = aba
+        st.session_state._ent_n = st.session_state.get("_ent_n", 0) + 1
+        st.markdown(ENTRADA_CSS, unsafe_allow_html=True)
+
+
+def entrada_js(nome: str) -> str:
+    """Trecho para as páginas em iframe: código da entrada atual + script de animação."""
+    tok = f'{st.session_state.get("_ent_aba", "")}-{st.session_state.get("_ent_n", 0)}'
+    return f'<script>window.ENTRADA={json.dumps(tok)};window.ENTRADA_NOME={json.dumps(nome)};</script><script>{recurso("entrada.js")}</script>'
 
 
 def ajudantes(d, aba, filtros):
