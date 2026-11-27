@@ -1,6 +1,6 @@
 # Relatório de Qualidade dos Dados (gerado pelo código)
 
-Gerado em 12/11/2026 por `ETL/integracao.py`. Os números vêm da execução, não de digitação. Rodar de novo atualiza tudo.
+Gerado em 27/11/2026 por `ETL/integracao.py`. Os números vêm da execução, não de digitação. Rodar de novo atualiza tudo.
 
 ## Premissas (o que estará disponível na hora da previsão)
 
