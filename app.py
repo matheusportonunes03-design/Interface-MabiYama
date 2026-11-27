@@ -28,7 +28,7 @@ DADOS = RAIZ / "dados"
 FRONT = RAIZ / "frontend"
 
 st.set_page_config(page_title="MaBiYama · Painel da Frota", page_icon="⚙️", layout="wide",
-                   initial_sidebar_state="expanded" if "usuario" in st.session_state else "collapsed")
+                   initial_sidebar_state="expanded" if isinstance(st.session_state.get("usuario"), dict) else "collapsed")
 
 
 # ------------------------------------------------------------------ recursos estáticos
@@ -299,8 +299,8 @@ def tela_login():
             st.markdown("""<h2 style="font-size:1.5rem;line-height:2rem;font-weight:800;color:var(--foreground)">Acesse sua frota</h2>
               <p style="margin:.25rem 0 0;font-size:.875rem;color:var(--muted-foreground)">Bem-vindo à MaBiYama.</p>""", unsafe_allow_html=True)
             with st.form("form_login", border=False, enter_to_submit=True):
-                usuario = st.text_input("Usuário", key="usuario", autocomplete="usuario", placeholder="Usuário")
-                senha = st.text_input("Senha", type="password", key="senha", autocomplete="current-password")
+                usuario = st.text_input("Usuário", key="login_usuario", autocomplete="username", placeholder="Usuário")
+                senha = st.text_input("Senha", type="password", key="login_senha", autocomplete="current-password")
                 esqueci = st.form_submit_button("Esqueci minha senha", key="esqueci")
                 entrar = st.form_submit_button("Entrar", key="entrar", width="stretch")
             if entrar:
@@ -779,7 +779,8 @@ def tela_perfil():
 # ------------------------------------------------------------------ main
 def main():
     css_base()
-    if "usuario" not in st.session_state:
+    if not isinstance(st.session_state.get("usuario"), dict):
+        st.session_state.pop("usuario", None)  # descarta valor inválido (ex.: string de versões antigas)
         tela_login()
         return
     aba = st.session_state.get("aba", "model")
