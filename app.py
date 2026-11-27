@@ -361,8 +361,10 @@ def cabecalho_painel(aba):
     aplicar({"envio": ["ico:upload"], "aba_perfil": ["ico:user"]})
 
     with st.container(key="cab"):
+        st.markdown(tema.BOLHAS_CAB, unsafe_allow_html=True)
         with st.container(key="cab_topo"):
-            st.markdown("""<div><p class="eyebrow" style="opacity:.8;margin:0">Manutenção preditiva · MaBiYama</p>
+            st.markdown(f"""<div><p class="eyebrow cab-marca" style="margin:0"><span style="opacity:.85">Manutenção preditiva ·</span>
+              <img src="{tema.logo_uri('logo_cabecalho.webp')}" alt="MaBiYama" /></p>
               <h1 class="titulo titulo-painel">Painel da Frota Industrial</h1></div>""",
                         unsafe_allow_html=True)
             with st.container(key="envio"):
@@ -507,10 +509,16 @@ def barra_lateral(d, aba):
         if escolha != aba:
             st.session_state.aba = escolha
             st.rerun()
-        if st.button("Rever animação", key="lb_anim", width="stretch",
-                     help="Toca de novo a chegada do Beto à fábrica. Na página, o Floco explica o bloco que estiver no centro da tela."):
-            animacao.reiniciar()
-            st.rerun()
+        tema.secao("Ajudantes")
+        with st.container(key="lb_ajud", horizontal=True, gap="small"):
+            if st.button("Rever animação", key="lb_anim", width="stretch",
+                         help="Toca de novo a entrada: a fábrica vista de fora, a chegada do operário e o Floco com as 5 máquinas de maior risco."):
+                animacao.reiniciar()
+                st.rerun()
+            if st.button("Personalizar", key="lb_perso", width="stretch",
+                         help="Nome, sexo, pele, cabelo, roupas e cor dos EPIs do operário. Fica salvo neste navegador."):
+                animacao.personalizar()
+                st.rerun()
         if aba in ("perfil", "maquinas", "dados", "sim"):
             return None
 

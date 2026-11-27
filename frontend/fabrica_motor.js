@@ -5,6 +5,7 @@ var CSS = '@@CSS@@';
 
 var S = { ordem: 0, foraT: 99, ritmo: 1, gutOn: null, bolhaEtapa: 0, pronto: false, tok: null, modo: 'oculto', aba: null, cfg: null, pular: false, pend: [], t: 0, ocultar: false, tr: 0, bolhas: [], travado: false,
   ultScroll: 0, ultMedida: 0, ultResolve: 0, rolou: false, dicaAte: 0, fase: 0,
+  esperando: false, prontoDesde: 0, esperaIni: 0, persoN: null,
   bl: -1, cand: -2, candDesde: 0, rects: [], vistos: {}, dlg: null, dlgId: 0, dlgPend: false, fechado: null, ptr: null, porMouse: false, reduzir: false };
 var E = { t: 0, porta: 0, armario: { aberto: false, itens: { cap: true, oc: true, col: true, lu: true } }, banca: { ferr: true, caixa: true }, maq: [] };
 var op, rb, elFoco, cv, ctx, fundoCv, raiz, elBolhas, elDica, elPular, elTg, elTopo, raf = 0, ultimo = 0, ouv = [];
@@ -16,7 +17,7 @@ function novoAtor(tipo, nome) {
 function resetCena() {
   E.porta = 0; E.armario = { aberto: false, itens: { cap: true, oc: true, col: true, lu: true } }; E.banca = { ferr: true, caixa: true };
   E.maq = [0, 1, 2, 3, 4].map(function (i) { return { i: i, x: 1.7 + i * 2.15, y: .25, w: 1.75, d: 1.3, h: [2.9, 3.2, 2.7, 3.1, 2.9][i], luz: 1, placa: '', rank: 0, prob: 0, peca: '', mostrar: 0, alvoMostrar: 0, destaque: 0 }; });
-  op = novoAtor('op', 'Beto'); rb = novoAtor('rb', 'Floco');
+  op = novoAtor('op', 'Beto'); rb = novoAtor('rb', 'Floco'); aplicarPerso(op);
 }
 
 /* ------------------------------------------------------------------ DOM */
@@ -27,12 +28,13 @@ function criarDOM() {
   raiz = D.createElement('div'); raiz.id = 'mby';
   raiz.innerHTML = '<canvas></canvas><div class="mby-foco"></div><div class="mby-bolhas"></div><div class="mby-topo"></div>' +
     '<div class="mby-dica" aria-hidden="true"><span>Role a página</span><i></i></div>' +
-    '<button type="button" class="mby-pular">Pular animação <b>»</b></button><button type="button" class="mby-tg">Ocultar ajudantes</button>';
+    '<button type="button" class="mby-pular">Pular animação <b>»</b></button><div class="mby-acoes"><button type="button" class="mby-pz-abrir" title="Mudar nome, aparência, roupas e EPIs">Personalizar</button><button type="button" class="mby-tg">Ocultar ajudantes</button></div>';
   D.body.appendChild(raiz);
   cv = raiz.querySelector('canvas'); ctx = cv.getContext('2d'); G.ctx = ctx;
   elBolhas = raiz.querySelector('.mby-bolhas'); elDica = raiz.querySelector('.mby-dica'); elPular = raiz.querySelector('.mby-pular');
   elTg = raiz.querySelector('.mby-tg'); elFoco = raiz.querySelector('.mby-foco'); elTopo = raiz.querySelector('.mby-topo');
   elPular.addEventListener('click', pularTudo);
+  raiz.querySelector('.mby-pz-abrir').addEventListener('click', function () { abrirPerso(); });
   elTg.addEventListener('click', function () { S.ocultar = !S.ocultar; try { localStorage.setItem('mby_ocultar', S.ocultar ? '1' : '0'); } catch (e) { } rotuloTg(); });
   try { S.ocultar = localStorage.getItem('mby_ocultar') === '1'; } catch (e) { }
   rotuloTg();
@@ -58,7 +60,7 @@ function travarRolagem(v) {
   raiz.classList.toggle('travado', v); D.body.classList.toggle('mby-travado', v);
 }
 function teclas(e) { if (S.travado && [32, 33, 34, 35, 36, 37, 38, 39, 40].indexOf(e.keyCode) >= 0) { var t = e.target; if (!t || !/input|textarea|select/i.test(t.tagName)) e.preventDefault(); } if (S.travado && e.key === 'Escape') pularTudo(); }
-function noScroll() { S.ultScroll = performance.now(); S.ptr = null; var m = principal(); if (m && m.scrollTop > 60) S.rolou = true; }
+function noScroll() { S.ultScroll = performance.now(); var m = principal(); if (m && m.scrollTop > 60) S.rolou = true; }
 
 /* ------------------------------------------------------------------ roteiro */
 function chk() { if (S.pular) throw PULOU; }
@@ -184,6 +186,7 @@ async function finalizar() {
 
 function pularTudo() {
   if (S.modo !== 'intro') return;
+  if (S.esperando) { S.esperando = false; tirarCapa(); S.pular = true; roteiro(); return; }
   S.pular = true; S.foraT = FORA; S.pend.splice(0).forEach(function (f) { f(); });
   [op, rb].forEach(function (a) { var f = a.fim; a.caminho = []; a.fim = null; if (f) f(); });
 }
@@ -377,9 +380,11 @@ function medir() {
       }
     }
   }
+  // o mouse manda: vale o bloco que está sob ele. Fora de qualquer bloco (ou sem mouse: toque, ponteiro fora da janela)
+  // vale a linha de leitura no centro da tela
   S.porMouse = false;
   var p = S.ptr;
-  if (p && p.x > A.x0 && p.x < A.x1 - gutAtual()) {
+  if (p && p.x > A.x0 && p.x < A.x1 - gutAtual() && p.y > 0 && p.y < vh) {
     var pm = -1, pa = 1e15;
     rs.forEach(function (r, i) { if (r && p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom) { var a = (r.right - r.left) * (r.bottom - r.top); if (a < pa) { pa = a; pm = i; } } });
     if (pm >= 0) { melhor = pm; S.porMouse = true; }
@@ -410,9 +415,9 @@ function iniciarDialogo(b) {
   S.dlgPend = false; encerrarDialogo(); var id = S.dlgId;
   var el = D.createElement('div'); el.className = 'mby-dlg';
   el.innerHTML = '<div class="mby-dlg-cab"><span class="mby-rot"></span><span class="mby-dlg-dica">clique para ler tudo</span><button type="button" class="mby-x" aria-label="Fechar">×</button></div>' +
-    '<p class="mby-fl op"><span class="mby-n">Beto</span><span class="mby-t"></span></p>' +
+    '<p class="mby-fl op"><span class="mby-n"></span><span class="mby-t"></span></p>' +
     '<p class="mby-fl rb"><span class="mby-n">Floco · modelo</span><span class="mby-t"></span></p>';
-  el.querySelector('.mby-rot').textContent = b.rot || '';
+  el.querySelector('.mby-rot').textContent = b.rot || ''; el.querySelector('.op .mby-n').textContent = nomeOp();
   elBolhas.appendChild(el);
   var d = { el: el, b: b, fase: 'beto', ate: 0, completo: false, chave: chaveBloco(b) };
   S.dlg = d;
@@ -423,10 +428,10 @@ function iniciarDialogo(b) {
   requestAnimationFrame(function () { el.classList.add('on'); });
   var lb = el.querySelector('.op .mby-t'), lf = el.querySelector('.rb .mby-t'), pf = el.querySelector('.mby-fl.rb');
   (async function () {
-    op.fala = true; var ok = await digitar(lb, b.beto, 20, id); op.fala = false; if (!ok) return;
+    op.fala = true; var ok = await digitar(lb, trocarNome(b.beto), 20, id); op.fala = false; if (!ok) return;
     if (!(await pausaD(380, id))) return;
     d.fase = 'floco'; pf.classList.add('on'); rb.fala = true;
-    ok = await digitar(lf, b.floco, 13, id); rb.fala = false; if (!ok) return;
+    ok = await digitar(lf, trocarNome(b.floco), 13, id); rb.fala = false; if (!ok) return;
     d.fase = 'lido'; el.classList.add('lido'); d.ate = performance.now() + 9000 + b.floco.length * 45; S.vistos[b.alvo] = performance.now() + Math.max(3000, b.floco.length * 38);  // tempo de leitura antes de passar ao vizinho
   })();
 }
@@ -444,8 +449,8 @@ function atualizarCompanhia(dt) {
     S.ultMedida = agora;
     var m = medir();
     if (m !== S.cand) { S.cand = m; S.candDesde = agora; }
-    var espera = S.porMouse ? 650 : (S.bl < 0 ? 0 : 220);
-    if (S.cand !== S.bl && agora - S.candDesde >= espera && agora - S.ultScroll > 200) {
+    var espera = S.porMouse ? 320 : (S.bl < 0 ? 0 : 220);
+    if (S.cand !== S.bl && agora - S.candDesde >= espera && (S.porMouse || agora - S.ultScroll > 200)) {
       S.bl = S.cand; encerrarDialogo(); S.dlgPend = S.bl >= 0; S.fechado = null;
     }
   }
@@ -513,8 +518,8 @@ function posicionarBolhas(dt) {
     var h = d.el.offsetHeight, x = A.x0 + livre - w - 14, cyR = rb.sy - 30 * rb.k;
     // se o bloco já ocupa a parte de baixo da tela, o diálogo sobe para o topo
     var r = (S.rects || [])[S.bl], emBaixo = r && r.bottom > vh - h - 30 && r.top > vh * .52;
-    d.el.style.left = Math.round(x) + 'px'; d.el.style.top = Math.round(emBaixo ? 16 : vh - h - 16) + 'px';
-    d.el.style.setProperty('--ty', clamp(cyR - (emBaixo ? 16 : vh - h - 16), 18, h - 18) + 'px');
+    d.el.style.left = Math.round(x) + 'px'; d.el.style.top = Math.round(emBaixo ? 52 : vh - h - 16) + 'px';
+    d.el.style.setProperty('--ty', clamp(cyR - (emBaixo ? 52 : vh - h - 16), 18, h - 18) + 'px');
   }
   // dica "Role a página": no meio da área do conteúdo, acima do diálogo quando ele está embaixo
   if (S.modo === 'companhia') {
@@ -551,10 +556,11 @@ function armarioUm(i) {
     var u = .06, w = .84;
     if (i === 1 && ab) {
       rc(c, u, .08, w, 2.74, '#26324f'); rc(c, u + .05, 1.5, w - .1, .06, '#5e6f93');
-      if (it.cap) { c.fillStyle = COR.amarelo; c.beginPath(); c.arc(u + w * .5, 2.3, .2, Math.PI, 0); c.fill(); rc(c, u + w * .5 - .27, 2.27, .54, .07, '#e5a400'); }
+      var VV = (op && op.visual) || VISUAL_PADRAO;
+      if (it.cap) { c.fillStyle = VV.capacete; c.beginPath(); c.arc(u + w * .5, 2.3, .2, Math.PI, 0); c.fill(); rc(c, u + w * .5 - .27, 2.27, .54, .07, tom(VV.capacete, .86)); }
       if (it.oc) { rc(c, u + .1, 2.0, .62, .12, '#1f2937'); rc(c, u + .14, 1.95, .24, .18, '#bfefff'); rc(c, u + .46, 1.95, .24, .18, '#bfefff'); }
-      if (it.col) { rc(c, u + .15, .9, .54, .95, COR.laranja); rc(c, u + .25, .9, .09, .95, '#eef5a8'); rc(c, u + .5, .9, .09, .95, '#eef5a8'); }
-      if (it.lu) { rc(c, u + .12, .45, .2, .3, '#e8a317'); rc(c, u + .5, .45, .2, .3, '#e8a317'); }
+      if (it.col) { rc(c, u + .15, .9, .54, .95, VV.colete); rc(c, u + .25, .9, .09, .95, tom(VV.colete, 1.75)); rc(c, u + .5, .9, .09, .95, tom(VV.colete, 1.75)); }
+      if (it.lu) { rc(c, u + .12, .45, .2, .3, VV.luva); rc(c, u + .5, .45, .2, .3, VV.luva); }
       c.fillStyle = '#9fb2d0'; c.beginPath(); c.moveTo(u + w, .08); c.lineTo(u + w + .28, .02); c.lineTo(u + w + .28, 2.7); c.lineTo(u + w, 2.82); c.fill();
     } else {
       rc(c, u, .08, w, 2.74, '#9bb0d2'); rc(c, u, .08, w, .06, '#c9d7ee');
@@ -618,11 +624,10 @@ function quadro(t) {
   var dt = Math.min(.05, (t - ultimo) / 1000 || .016); ultimo = t; S.t += dt; E.t = S.t;
   if (D.hidden) return;
   [op, rb].forEach(function (a) { a.t += dt; });
-  if (S.modo === 'intro') { mover(op, dt); mover(rb, dt); if (S.foraT < FORA) S.foraT = Math.min(FORA, S.foraT + dt * S.ritmo); }
+  if (S.modo === 'intro') { vigiarEspera(); if (!S.esperando) { mover(op, dt); mover(rb, dt); if (S.foraT < FORA) S.foraT = Math.min(FORA, S.foraT + dt * S.ritmo); } }
   E.maq.forEach(function (m) { m.mostrar += (m.alvoMostrar - m.mostrar) * Math.min(1, dt * 5); });
   if (S.modo === 'companhia') atualizarCompanhia(dt);
   desenhar(); posicionarBolhas(dt);
-  if (!S.pronto) { S.pronto = true; var cp = D.querySelector('.mby-capa'); if (cp) { cp.style.opacity = '0'; cp.style.pointerEvents = 'none'; setTimeout(function () { cp.style.visibility = 'hidden'; }, 600); } }
 }
 
 
@@ -631,7 +636,36 @@ function iniciarIntro() {
   resetCena(); sairLogin(); zerarBloco(); S.vistos = {}; S.modo = 'intro'; S.pular = false; S.pend = []; S.foraT = 0;
   elPular.style.display = ''; travarRolagem(true); limparBolhas();
   S.ritmo = clamp(+(S.cfg.ritmo || 1), .4, 3);
-  roteiro();
+  // segura a cena (atrás da capa) até a página terminar de carregar: script parado, iframes prontos e fontes carregadas
+  S.esperando = true; S.prontoDesde = 0; S.esperaIni = performance.now();
+}
+/* a página está pronta? O Streamlit parou de rodar o script, os iframes do conteúdo carregaram e as fontes também */
+function paginaPronta() {
+  var app = D.querySelector('.stApp');
+  if (app && app.getAttribute('data-test-script-state') === 'running') return false;
+  if (D.querySelector('[data-testid="stSkeleton"]')) return false;
+  if (D.fonts && D.fonts.status !== 'loaded') return false;
+  var m = principal(), fs = m ? m.querySelectorAll('iframe') : [];
+  for (var i = 0; i < fs.length; i++) {
+    if (fs[i].title === 'mby' || !visivelEl(fs[i])) continue;
+    try { var d = fs[i].contentDocument; if (!d || d.readyState !== 'complete') return false; var r = d.getElementById('root'); if (r && !r.children.length) return false; } catch (e) { }
+  }
+  return true;
+}
+function vigiarEspera() {
+  if (!S.esperando) return;
+  var agora = performance.now();
+  if (paginaPronta()) { if (!S.prontoDesde) S.prontoDesde = agora; } else S.prontoDesde = 0;
+  // pronta e estável por 0,6 s (ou 15 s de espera, para nunca travar): tira a capa e só então começa
+  if ((S.prontoDesde && agora - S.prontoDesde > 600) || agora - S.esperaIni > 15000) {
+    S.esperando = false; tirarCapa();
+    setTimeout(function () { if (S.modo === 'intro') roteiro(); }, 450);
+  }
+}
+function tirarCapa() {
+  var cp = D.querySelectorAll('.mby-capa');
+  for (var j = 0; j < cp.length; j++) cp[j].setAttribute('data-fora', '1');
+  for (var i = 0; i < cp.length; i++) (function (c) { c.style.animation = 'none'; c.style.opacity = '0'; c.style.pointerEvents = 'none'; setTimeout(function () { c.style.visibility = 'hidden'; }, 600); })(cp[i]);
 }
 /* mantém o que já foi achado na página quando um rerun reenvia os mesmos blocos */
 function normalizar(cfg, velho) {
@@ -648,20 +682,22 @@ function assarFundoLogin() {
 function sairLogin() { D.body.classList.remove('mby-login'); raiz.classList.remove('mby-login'); }
 function atualizar(cfg) {
   if (cfg.modo === 'login') { encerrarDialogo(); S.cfg = cfg; S.modo = 'login'; S.tok = null; gutter(false); assarFundoLogin(); return; }
+  if (cfg.abrirPerso && cfg.abrirPerso !== S.persoN) { S.persoN = cfg.abrirPerso; setTimeout(abrirPerso, S.modo === 'intro' ? 0 : 120); }
   var velho = S.cfg, blAntes = S.bl >= 0 && velho && velho.blocos ? velho.blocos[S.bl] : null;
   S.cfg = normalizar(cfg, velho);
   if (cfg.tok !== S.tok) {
     S.tok = cfg.tok; S.aba = cfg.aba;
-    if (cfg.intro && !S.reduzir) iniciarIntro(); else iniciarCompanhia();
+    if (cfg.intro && !S.reduzir) iniciarIntro(); else { iniciarCompanhia(); tirarCapa(); }
     return;
   }
-  if (cfg.aba !== S.aba) { S.aba = cfg.aba; zerarBloco(); S.vistos = {}; S.ultResolve = 0; return; }
+  if (cfg.aba !== S.aba) { S.aba = cfg.aba; zerarBloco(); S.vistos = {}; S.ultResolve = 0; if (S.modo !== 'intro') tirarCapa(); return; }
   // mesma página: se o bloco ativo continua o mesmo, a conversa segue; se o texto dele mudou (outro dia, outro filtro), recomeça
   var blAgora = S.bl >= 0 ? (cfg.blocos || [])[S.bl] : null;
   if (!blAgora || !blAntes || blAgora.alvo !== blAntes.alvo) zerarBloco();
   else if (chaveBloco(blAgora) !== chaveBloco(blAntes)) { encerrarDialogo(); S.dlgPend = true; S.fechado = null; }
   else if (S.dlg) S.dlg.b = blAgora;
   S.ultResolve = 0;
+  if (S.modo !== 'intro') tirarCapa();
   if (S.modo !== 'intro') (cfg.top5 || []).forEach(function (t, i) { revelar(i); });
 }
 function destruir() {
@@ -670,7 +706,7 @@ function destruir() {
   if (raiz) raiz.remove(); var st = D.getElementById('mby-css'); if (st) st.remove(); delete Wn.__MBY;
 }
 
-(function boot() {
+function boot() {
   resetCena(); criarDOM(); ajustar();
   try { S.reduzir = Wn.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { }
   ouvir(Wn, 'resize', function () { ajustar(); });
@@ -679,4 +715,4 @@ function destruir() {
   ouvir(D.documentElement, 'mouseleave', function () { S.ptr = null; }, { passive: true });
   Wn.__MBY = { versao: VERSAO, atualizar: atualizar, destruir: destruir, S: S };
   raf = requestAnimationFrame(quadro);
-})();
+}

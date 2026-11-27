@@ -84,6 +84,41 @@
   .xg-pe{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
   .xg-sub{font-size:.74rem;color:var(--muted-foreground);line-height:1.35;margin:0}
   .xg-det{border-top:1px solid var(--border);padding-top:.7rem;font-size:.82rem;line-height:1.5;color:var(--muted-foreground)}
+  .revela{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .55s cubic-bezier(.4,0,.2,1),opacity .45s ease}
+  .revela.aberto{grid-template-rows:1fr;opacity:1}
+  .revela>div{overflow:hidden;min-height:0}
+  .ga-tit{display:grid;gap:.15rem;border-top:1px solid var(--border);padding-top:1.1rem}
+  .ga{display:grid;gap:1rem;border-top:1px solid var(--border);padding-top:1.25rem}
+  .ga-cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem}
+  .ga-abrir{display:inline-flex;align-items:center;gap:.5rem;height:2.5rem;padding:0 1.1rem;border-radius:999px;border:1px solid var(--input);background:var(--card);color:var(--foreground);font:inherit;font-weight:800;font-size:.85rem;cursor:pointer;box-shadow:var(--shadow-card)}
+  .ga-abrir:hover{background:var(--secondary)}
+  .ga-chips{display:flex;flex-wrap:wrap;gap:.5rem;margin:.25rem 0 1rem}
+  .ga-chip{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--input);background:var(--card);color:var(--foreground);border-radius:999px;padding:.35rem .8rem;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+  .ga-chip span{font-size:.7rem;font-weight:800;border-radius:999px;padding:0 .45rem;background:var(--secondary);color:var(--muted-foreground)}
+  .ga-chip.on{background:color-mix(in oklab,var(--brand) 12%,var(--card));border-color:color-mix(in oklab,var(--brand) 45%,var(--border));color:var(--foreground)}
+  .ga-chip.on span{background:color-mix(in oklab,var(--brand) 22%,var(--card));color:var(--foreground)}
+  .ga-tema{margin-bottom:1.5rem}
+  .ga-tema-cab{display:flex;align-items:baseline;gap:.6rem;margin-bottom:.75rem}
+  .ga-tema-cab h3{margin:0;font-size:.95rem;font-weight:800;color:var(--foreground)}
+  .ga-tema-cab span{font-size:.75rem;color:var(--muted-foreground);font-weight:700}
+  .ga-grade{display:grid;gap:1rem;grid-template-columns:repeat(1,minmax(0,1fr))}
+  @media(min-width:700px){.ga-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(min-width:1100px){.ga-grade{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .ga-card{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:calc(var(--radius) + 4px);background:var(--card);overflow:hidden;box-shadow:var(--shadow-card);transition:box-shadow .2s,transform .2s;min-width:0}
+  .ga-card:hover{box-shadow:0 10px 26px -14px rgb(20 40 90/.45);transform:translateY(-2px)}
+  .ga-card.grande{grid-column:1/-1}
+  .ga-img{position:relative;display:block;border:0;padding:0;background:#fff;cursor:zoom-in;border-bottom:1px solid var(--border)}
+  .ga-card.grande .ga-img{cursor:zoom-out}
+  .ga-img img{display:block;width:100%;height:170px;object-fit:contain;transition:height .35s ease}
+  .ga-card.grande .ga-img img{height:auto;max-height:560px}
+  .ga-num{position:absolute;top:.5rem;left:.5rem;min-width:1.6rem;height:1.6rem;border-radius:999px;display:grid;place-items:center;font-size:.72rem;font-weight:800;background:var(--brand-deep);color:#fff}
+  .ga-lupa{position:absolute;right:.5rem;bottom:.5rem;font-size:.7rem;font-weight:800;border-radius:999px;padding:.15rem .55rem;background:rgb(15 23 42/.72);color:#fff;opacity:0;transition:opacity .2s}
+  .ga-img:hover .ga-lupa,.ga-img:focus-visible .ga-lupa{opacity:1}
+  .ga-corpo{padding:.85rem 1rem 1rem;display:flex;flex-direction:column;gap:.35rem;flex:1}
+  .ga-grupo{margin:0;font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)}
+  .ga-titulo{margin:0;font-size:.95rem;font-weight:800;line-height:1.3;color:var(--foreground)}
+  .ga-pe{display:flex;justify-content:flex-start;margin-top:auto;padding-top:.35rem}
+  .dark .ga-num{background:oklch(45% .11 258)}
   @keyframes xgOnda{to{transform:translateX(-50%)}}
   @keyframes xgBolha{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-150px);opacity:0}}
   @media (prefers-reduced-motion:reduce){.xg-o1,.xg-o2,.xg-b{animation:none}}
@@ -433,8 +468,9 @@
         <p class="xg-sub">${sub}</p>
         <button class="insight-btn" aria-expanded=${aberto} onClick=${() => setAberto(!aberto)}>${Ic && html`<${Ic} nome="lightbulb" className="h-4 w-4" />`}${aberto ? "Fechar" : "Insight"}</button>
       </div>
-      ${aberto && html`<div class="xg-det"><p style=${{ margin: 0 }}>${detail}</p>
-        <button class="xp-btn" style=${{ marginTop: ".6rem" }} onClick=${onIr}>Ver insight principal →</button></div>`}
+      ${(() => { const Rv = window.Revela; const corpo = html`<div class="xg-det"><p style=${{ margin: 0 }}>${detail}</p>
+        <button class="xp-btn" style=${{ marginTop: ".6rem" }} onClick=${onIr}>Ver insight principal →</button></div>`;
+        return Rv ? html`<${Rv} aberto=${aberto}>${corpo}<//>` : aberto && corpo; })()}
     </div>`;
   }
 

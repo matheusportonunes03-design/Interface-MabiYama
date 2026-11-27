@@ -62,6 +62,12 @@ function irPara(id) {
   t?.focus({ preventScroll: true });
 }
 
+/* bloco que abre e fecha devagar (altura animada) */
+function Revela({ aberto, children }) {
+  return html`<div class=${"revela" + (aberto ? " aberto" : "")} aria-hidden=${!aberto}><div>${children}</div></div>`;
+}
+window.Revela = Revela;
+
 function Cartao({ title, accent = "border-l-brand", children, className = "", id, insight }) {
   const [aberto, setAberto] = useState(F.expandir);
   return html`<section id=${id} tabIndex="-1" class=${`card-canvas min-w-0 scroll-mt-6 ${accent} ${className}`}>
@@ -71,7 +77,7 @@ function Cartao({ title, accent = "border-l-brand", children, className = "", id
         <${Icone} nome="lightbulb" className="h-4 w-4" />${aberto ? "Fechar" : "Insight"}</button>`}
     </div>
     ${children}
-    ${insight && aberto && html`<p class="insight-txt">${insight}</p>`}</section>`;
+    ${insight && html`<${Revela} aberto=${aberto}><p class="insight-txt">${insight}</p><//>`}</section>`;
 }
 
 function Kpi({ icone, label, value, sub, accent, detail, target }) {
@@ -88,10 +94,10 @@ function Kpi({ icone, label, value, sub, accent, detail, target }) {
       ? html`<button class=${BTN_GHOST_KPI} aria-expanded=${aberto} onClick=${() => setAberto(!aberto)}>
           ${corpo}<${Icone} nome="chevron-down" className=${`ml-auto transition-transform ${aberto ? "rotate-180" : ""}`} /></button>`
       : html`<div class="flex items-center gap-4">${corpo}</div>`}
-    ${aberto && html`<div class="mt-4 border-t border-border pt-3">
+    ${detail && html`<${Revela} aberto=${aberto}><div class="mt-4 border-t border-border pt-3">
       <p class="text-sm text-muted-foreground">${detail}</p>
-      <button class=${BTN_OUTLINE + " mt-3"} onClick=${() => target && irPara(target)}>Ver insight principal <${Icone} nome="arrow-right" /></button>
-    </div>`}
+      ${target && html`<button class=${BTN_OUTLINE + " mt-3"} onClick=${() => irPara(target)}>Ver insight principal <${Icone} nome="arrow-right" /></button>`}
+    </div><//>`}
   </div>`;
 }
 
@@ -201,11 +207,17 @@ function Exploratoria() {
   const e = D.eda;
   return html`<div class="grid gap-5">
     <div class="grid gap-5 md:grid-cols-4">
-      <${Kpi} icone="cpu" label="Máquinas" value=${e.kpi.maquinas} sub=${e.kpi.maquinasSub} accent="border-l-brand" />
-      <${Kpi} icone="triangle-alert" label="Falhas no período" value=${e.kpi.falhas} sub=${e.kpi.falhasSub} accent="border-l-violet" />
-      <${Kpi} icone="wrench" label="Manutenções" value=${e.kpi.manut} sub="preventivas · grade de 15 dias" accent="border-l-amber" />
-      <${Kpi} icone="database" label="Leituras de sensores" value=${e.kpi.leituras} sub="sensores A–D · vibração · clima" accent="border-l-brand-sky" />
+      <${Kpi} icone="cpu" label="Máquinas" value=${e.kpi.maquinas} sub=${e.kpi.maquinasSub} accent="border-l-brand"
+        detail=${`A frota tem ${e.kpi.maquinas} máquinas (${e.kpi.maquinasSub}), cada uma com 4 peças monitoradas (A a D). As mais velhas falham mais, sobretudo na peça A.`} />
+      <${Kpi} icone="triangle-alert" label="Falhas no período" value=${e.kpi.falhas} sub=${e.kpi.falhasSub} accent="border-l-violet"
+        detail=${`São ${e.kpi.falhas} falhas de peça registradas às 06:00 (${e.kpi.falhasSub}), o alvo do modelo. A peça C é a que mais falha e a D a que menos.`} />
+      <${Kpi} icone="wrench" label="Manutenções" value=${e.kpi.manut} sub="preventivas · grade de 15 dias" accent="border-l-amber"
+        detail=${`As ${e.kpi.manut} trocas seguem uma grade de 15 dias desde a última troca de cada peça. Quase todas as falhas caem na véspera de uma dessas datas, e é nesses dias que o modelo concentra a atenção.`} />
+      <${Kpi} icone="database" label="Leituras de sensores" value=${e.kpi.leituras} sub="sensores A–D · vibração · clima" accent="border-l-brand-sky"
+        detail="Leituras horárias dos sensores A a D, vibração, temperatura e umidade. Depois do tratamento, 1,6% ficaram vazias: são as leituras de falha do próprio sensor (0 e −999), marcadas por flag." />
     </div>
+    <div class="ga-tit"><h2 class="text-xl font-extrabold">Principais análises</h2>
+      <p class="text-sm text-muted-foreground">Os sete gráficos que mais explicam as falhas da frota. Cada um tem um insight; o restante da Etapa 3 fica logo abaixo.</p></div>
     <div class="grid gap-5 lg:grid-cols-3">
       <${Cartao} title="Sinal antes da falha · sensor da peça (48h)" accent="border-l-violet" className="lg:col-span-2" insight="O sensor ligado à peça sai do normal cerca de 2 dias antes da falha: em média 0,27 desvio 48 h antes, 0,53 com 24 h e 0,65 na última hora. É essa rampa que o modelo procura às 05:00 de cada dia.">
         <${ResponsiveContainer} width="100%" height=${260}>
@@ -285,38 +297,57 @@ function Exploratoria() {
 }
 
 
+function GCard({ g, grande, alternaZoom }) {
+  const [ins, setIns] = useState(F.expandir);
+  return html`<article class=${"ga-card" + (grande ? " grande" : "")}>
+    <button class="ga-img" aria-label=${`${grande ? "Reduzir" : "Ampliar"}: ${g.titulo}`} onClick=${alternaZoom}>
+      <img src=${g.src} alt=${g.titulo} loading="lazy" />
+      <span class="ga-num">${g.n}</span>
+      <span class="ga-lupa">${grande ? "Reduzir" : "Ampliar"}</span>
+    </button>
+    <div class="ga-corpo">
+      <p class="ga-grupo">${g.grupo}</p>
+      <h4 class="ga-titulo">${g.titulo}</h4>
+      <div class="ga-pe">
+        <button class="insight-btn" aria-expanded=${ins} onClick=${() => setIns(!ins)}><${Icone} nome="lightbulb" className="h-4 w-4" />${ins ? "Fechar" : "Insight"}</button>
+      </div>
+      <${Revela} aberto=${ins}><p class="insight-txt">${g.insight}</p><//>
+    </div>
+  </article>`;
+}
+
 function Galeria() {
   const todos = D.graficos || [];
-  const grupos = [...new Set(todos.map((g) => g.grupo))].filter((g) => !F.grupos.length || F.grupos.includes(g));
-  const [aberto, setAberto] = useState(() => new Set(F.expandir ? todos.map((g) => g.n) : []));
-  const alterna = (n) => setAberto((a) => { const b = new Set(a); b.has(n) ? b.delete(n) : b.add(n); return b; });
+  const temas = [...new Set(todos.map((g) => g.grupo))];
+  const [aberta, setAberta] = useState(F.expandir || F.grupos.length > 0);
+  const [tema, setTema] = useState(F.grupos.length === 1 ? F.grupos[0] : "Todos");
+  const [zoom, setZoom] = useState(null);
   if (!todos.length) return null;
-  return html`<section aria-label="Análises da Etapa 3" class="grid gap-6">
-    <div class="border-t border-border pt-5">
-      <h2 class="text-xl font-extrabold">Análises da Etapa 3</h2>
-      <p class="mt-1 text-sm text-muted-foreground">${todos.length} gráficos da análise exploratória, feitos só com o período de treino. Clique em um gráfico para ampliá-lo e ler o insight.</p>
-    </div>
-    ${grupos.map((gr) => html`<div key=${gr}>
-      <h3 class="mb-3 text-xs font-bold uppercase tracking-widest text-brand-deep">${gr}</h3>
-      <div class="grid gap-5 md:grid-cols-2">
-        ${todos.filter((g) => g.grupo === gr).map((g) => {
-          const ab = aberto.has(g.n);
-          return html`<article key=${g.n} class=${`card-canvas min-w-0 border-l-brand ${ab ? "md:col-span-2" : ""}`}>
-            <button class="galeria-btn" aria-expanded=${ab} onClick=${() => alterna(g.n)}>
-              <span class="flex min-w-0 items-center gap-3">
-                <span class="galeria-num">${g.n}</span>
-                <span class="truncate text-left text-base font-extrabold text-foreground">${g.titulo}</span>
-              </span>
-              <${Icone} nome="chevron-down" className=${`h-4 w-4 flex-none text-muted-foreground transition-transform ${ab ? "rotate-180" : ""}`} />
-            </button>
-            <button class="galeria-img" aria-label=${`${ab ? "Recolher" : "Ampliar"}: ${g.titulo}`} onClick=${() => alterna(g.n)}>
-              <img src=${g.src} alt=${g.titulo} loading="lazy" class=${ab ? "aberta" : ""} />
-            </button>
-            ${ab && html`<div class="insight-txt flex gap-3"><${Icone} nome="lightbulb" className="mt-0.5 h-4 w-4 flex-none text-amber" /><p>${g.insight}</p></div>`}
-          </article>`;
-        })}
+  const visiveis = (gr) => todos.filter((g) => g.grupo === gr);
+  const grupos = tema === "Todos" ? temas.filter((t) => !F.grupos.length || F.grupos.includes(t)) : [tema];
+  return html`<section aria-label="Todas as análises da Etapa 3" class="ga">
+    <div class="ga-cab">
+      <div>
+        <h2 class="text-xl font-extrabold">Todas as análises da Etapa 3</h2>
+        <p class="text-sm text-muted-foreground">${todos.length} gráficos em ${temas.length} temas, feitos só com o período de treino.</p>
       </div>
-    </div>`)}
+      <button class="ga-abrir" aria-expanded=${aberta} onClick=${() => setAberta(!aberta)}>
+        ${aberta ? "Recolher" : `Ver todas as análises (${todos.length})`}
+        <${Icone} nome="chevron-down" className=${`h-4 w-4 transition-transform ${aberta ? "rotate-180" : ""}`} />
+      </button>
+    </div>
+    <${Revela} aberto=${aberta}>
+      <div class="ga-chips" role="tablist" aria-label="Temas">
+        ${["Todos", ...temas].map((t) => html`<button key=${t} role="tab" aria-selected=${tema === t} class=${"ga-chip" + (tema === t ? " on" : "")}
+          onClick=${() => { setTema(t); setZoom(null); }}>${t}<span>${t === "Todos" ? todos.length : visiveis(t).length}</span></button>`)}
+      </div>
+      ${grupos.map((gr) => html`<div key=${gr} class="ga-tema">
+        <div class="ga-tema-cab"><h3>${gr}</h3><span>${visiveis(gr).length} gráficos</span></div>
+        <div class="ga-grade">
+          ${visiveis(gr).map((g) => html`<${GCard} key=${g.n} g=${g} grande=${zoom === g.n} alternaZoom=${() => setZoom(zoom === g.n ? null : g.n)} />`)}
+        </div>
+      </div>`)}
+    <//>
   </section>`;
 }
 

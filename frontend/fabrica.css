@@ -1,6 +1,6 @@
 #mby{position:fixed;inset:0;z-index:999979;pointer-events:none;font-family:"Nunito",system-ui,sans-serif;color:#17203a}
 #mby.travado{z-index:2147483000;pointer-events:auto}
-#mby canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;image-rendering:auto}
+#mby > canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block;image-rendering:auto}
 body.mby-travado [data-testid="stExpandSidebarButton"]{display:none!important}
 .mby-bolhas{position:absolute;inset:0;pointer-events:none}
 .mby-b{position:absolute;left:0;top:0;width:max-content;max-width:min(300px,calc(100vw - 20px));min-width:130px;box-sizing:border-box;background:#fff;color:#17203a;border:2px solid #17203a;border-radius:12px;
@@ -71,3 +71,52 @@ body.mby-gut [data-testid="stMainBlockContainer"]{padding-bottom:100px!important
 .mby-fl.rb .mby-t{color:#17203a;font-weight:800}
 #mby.mby-fora .mby-dlg{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.mby-dlg{transition:none}}
+
+/* botões fixos (canto superior direito) */
+.mby-acoes{position:absolute;right:14px;top:12px;display:none;gap:6px;pointer-events:auto}
+#mby:not(.travado) .mby-acoes{display:flex}
+.mby-acoes .mby-tg{position:static;display:block!important}
+.mby-pz-abrir{cursor:pointer;font:800 11.5px "Nunito",system-ui,sans-serif;border-radius:999px;border:2px solid #17203a;background:#fff;color:#17203a;padding:4px 12px;box-shadow:0 3px 0 rgba(23,32,58,.3);opacity:.8}
+.mby-pz-abrir:hover{opacity:1;background:#eef4ff}
+#mby.mby-fora .mby-pz-abrir{display:none}
+.mby-login .mby-acoes{display:none!important}
+
+/* painel de personalização do operário */
+.mby-pz{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:rgba(12,20,42,.42);backdrop-filter:blur(2px);pointer-events:auto;opacity:0;transition:opacity .2s}
+.mby-pz.on{opacity:1}
+.mby-pz-card{width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto;background:#fff;color:#17203a;border:2px solid #17203a;border-radius:16px;box-shadow:0 4px 0 rgba(23,32,58,.3),0 24px 60px rgba(10,20,50,.35);
+  transform:translateY(10px) scale(.98);transition:transform .22s;font-family:"Nunito",system-ui,sans-serif}
+.mby-pz.on .mby-pz-card{transform:none}
+.mby-pz-cab{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:2px dashed #dfe6f1}
+.mby-pz-cab b{display:block;font-size:17px;font-weight:900}.mby-pz-cab span{display:block;font-size:12px;font-weight:700;color:#6a7a98}
+.mby-pz-corpo{display:grid;grid-template-columns:240px 1fr;gap:18px;padding:14px 16px}
+@media (max-width:640px){.mby-pz-corpo{grid-template-columns:1fr}}
+.mby-pz-prev{display:flex;flex-direction:column;align-items:center;gap:8px}
+.mby-pz-palco{position:relative;width:230px;border-radius:14px;border:2px solid #17203a;overflow:hidden;
+  background:linear-gradient(#eaf2ff 0 62%,#d7e1ee 62% 100%);box-shadow:inset 0 -14px 0 rgba(23,32,58,.05)}
+.mby-pz-palco canvas{display:block}
+.mby-pz-nome{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);background:#1e3f9a;color:#fff;border:2px solid #17203a;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.08em;padding:1px 10px;text-transform:uppercase;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.mby-pz-giro{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#4a5b7d}
+.mby-pz-giro button{width:30px;height:28px;border-radius:9px;border:2px solid #17203a;background:#fff;cursor:pointer;font-size:11px;box-shadow:0 2px 0 rgba(23,32,58,.25)}
+.mby-pz-giro button:hover{background:#eef4ff}
+.mby-pz-tg{display:flex;gap:12px;font-size:12px;font-weight:800;color:#4a5b7d}.mby-pz-tg label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.mby-pz-ctrl{display:flex;flex-direction:column;gap:11px;min-width:0}
+.mby-pz-l{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#4a5b7d}
+.mby-pz-l input[type=text]{font:800 14px "Nunito",system-ui,sans-serif;color:#17203a;border:2px solid #17203a;border-radius:10px;padding:6px 10px;outline:none;text-transform:none;letter-spacing:0}
+.mby-pz-l input[type=text]:focus{box-shadow:0 0 0 3px rgba(30,63,154,.18)}
+.mby-pz-seg{display:flex;gap:6px}.mby-pz-wrap{flex-wrap:wrap}
+.mby-pz-seg button{font:800 12.5px "Nunito",system-ui,sans-serif;color:#17203a;background:#fff;border:2px solid #c9d3e3;border-radius:999px;padding:4px 12px;cursor:pointer;text-transform:none;letter-spacing:0}
+.mby-pz-seg button:hover{border-color:#17203a}
+.mby-pz-seg button.on{border-color:#17203a;background:#1e3f9a;color:#fff;box-shadow:0 2px 0 rgba(23,32,58,.3)}
+.mby-pz-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 16px}
+.mby-pz-sw{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.mby-pz-sw button,.mby-pz-cor{width:22px;height:22px;border-radius:50%;border:2px solid #17203a;background:var(--c);cursor:pointer;padding:0;position:relative;box-sizing:border-box}
+.mby-pz-sw button.on,.mby-pz-cor.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #1e3f9a}
+.mby-pz-cor{display:grid;place-items:center;background:var(--c,transparent);border-style:dashed;overflow:hidden}
+.mby-pz-cor.on{border-style:solid}
+.mby-pz-cor input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:0;padding:0}
+.mby-pz-cor span{font-size:14px;font-weight:900;line-height:1;color:#17203a;pointer-events:none}.mby-pz-cor.on span{display:none}
+.mby-pz-pe{display:flex;align-items:center;gap:8px;padding:12px 16px 14px;border-top:2px dashed #dfe6f1}.mby-pz-pe i{flex:1}
+.mby-pz-pe button{font:800 13px "Nunito",system-ui,sans-serif;border-radius:999px;border:2px solid #17203a;padding:6px 15px;cursor:pointer;box-shadow:0 3px 0 rgba(23,32,58,.28)}
+.mby-pz-pe .sec{background:#fff;color:#17203a}.mby-pz-pe .sec:hover{background:#eef4ff}
+.mby-pz-pe .pri{background:#1e3f9a;color:#fff}.mby-pz-pe .pri:hover{background:#28509f}

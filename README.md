@@ -66,12 +66,17 @@ Vindos do modelo:
 
 ## Galeria da análise exploratória
 
+A aba mostra primeiro os 4 indicadores (cada um abre um detalhe) e as **principais análises**: os 7 gráficos que mais explicam as
+falhas, todos com botão **Insight**. O texto abre e fecha com uma expansão gradual (0,55 s), como a barra lateral. Logo abaixo,
+**"Ver todas as análises (23)"** abre a galeria completa, organizada por tema (chips com a contagem de cada tema, um bloco por tema),
+cada gráfico com seu Insight e clique para ampliar.
+
 `dados/eda/` traz os 23 gráficos do notebook da Etapa 3 (WebP) e `graficos.json`, com título, tema e o parágrafo de
 insight de cada um. Para trocar um gráfico, substitua o `.webp` com o mesmo nome; para mudar o texto, edite o JSON.
 
 ## Aba "Máquinas" (ficha da máquina)
 
-Escolha uma máquina para ver:
+Escolha uma máquina no seletor do topo da ficha (com ◀ Anterior / Próxima ▶) ou na barra lateral; os dois ficam sincronizados. A ficha mostra:
 - **Cadastro:** modelo, idade, fabricante, planta, linha e potência.
 - **Risco previsto no período de teste:** cada círculo é um dia de grade da peça; o tamanho e o número mostram a probabilidade de falha.
 - **Histórico:** falhas por peça, última preventiva e próxima data de grade de cada peça, erros por código.
@@ -125,7 +130,9 @@ pasta dos CSV tratados e pasta `resultados/` do notebook da Etapa 4).
 - **Simulador**: cenários prontos de premissas, período de 2023, peças, linhas de produção e número de cenários de Monte Carlo.
 - **Galões** (aba Previsão & Modelagem): os 4 indicadores viram reservatórios animados; o botão "Insight" abre a explicação e leva ao gráfico.
 - **Replay** no estilo rede hidráulica: linhas de produção como canos, máquinas como bombas (pingam acima de 40%).
-- **Tela de entrada "Maré"** e **cabeçalho com borda ondulada** (máscara CSS animada em `tema.py`).
+- **Tela de entrada "Maré"** e **cabeçalho com borda ondulada** (máscara CSS animada em `tema.py`), com a logo em branco
+  (`frontend/marca/logo_cabecalho.webp`) no lugar do nome e bolhas subindo (`BOLHAS_CAB`).
+- Paleta do modo escuro em azul mais sóbrio (sem brilho nos selecionados nem anel de foco luminoso).
 
 ## Animação de boas-vindas e ajudantes (Beto e Floco)
 Ao entrar, o operário **Beto** chega à fábrica, veste capacete, colete, luvas e óculos, pega a chave inglesa e a caixa de
@@ -137,19 +144,30 @@ lateral direita**: o Floco do lado do conteúdo, apontando para o bloco, e o Bet
 pergunta e o Floco explica, num balão de diálogo; o bloco explicado ganha uma moldura.
 
 Como o bloco é escolhido:
-- vale o que está **no centro da tela**; no começo e no fim da página a "linha de leitura" sobe ou desce, para os primeiros e os
-  últimos blocos também serem explicados;
-- cartões lado a lado na mesma altura são explicados **da esquerda para a direita**, um depois do outro;
-- se o mouse **parar sobre um bloco**, ele passa a valer (até a próxima rolagem);
-- a troca só acontece quando a escolha fica estável e a rolagem para, para não piscar.
+- vale o bloco que está **sob o mouse** (a troca acontece depois de ~0,3 s parado em cima dele, inclusive enquanto a página rola);
+- com o mouse fora de qualquer bloco, ou sem mouse (toque), vale o que está **no centro da tela**; no começo e no fim da página a
+  "linha de leitura" sobe ou desce, para os primeiros e os últimos blocos também serem explicados;
+- nesse modo, cartões lado a lado na mesma altura são explicados **da esquerda para a direita**, um depois do outro;
+- a troca só acontece quando a escolha fica estável, para não piscar.
+
+Início da cena: a capa "Entrando na fábrica…" fica na tela até a página terminar de carregar (script do Streamlit parado, iframes
+prontos e fontes carregadas, estável por 0,6 s; no máximo 15 s). Só então a cena começa, desde a fábrica vista de fora, para nada
+ser cortado. "Rever animação" toca a entrada inteira de novo.
+
+Personalização do operário: botão **Personalizar** (barra lateral, em Ajudantes, ou no canto superior direito da tela). Abre um
+painel com prévia animada (dá para girar o personagem e tirar os EPIs) e escolhe nome, sexo, pele, cabelo (curto, raspado,
+cacheado, rabo de cavalo, longo), cor do cabelo, barba, camisa, calça, calçado, capacete, colete e luvas (paleta ou qualquer cor).
+Fica salvo no navegador (`localStorage`, chave `mby_operario`); o nome aparece nos balões e no diálogo. Nos textos de
+`animacao.py`, `{beto}` é trocado pelo nome escolhido.
 
 Arquivos:
 - `animacao.py`: o top 5 da cena e os blocos de cada página (`blocos_modelo`, `blocos_eda`, `blocos_maquinas`, `blocos_dados`,
   `blocos_sim`), cada um com o título que aparece na tela, a pergunta do Beto e a explicação do Floco, montados com os dados reais.
   Os 23 gráficos da galeria usam o insight do `graficos.json`. Para mudar um texto, edite a função da página.
 - `frontend/fabrica_cena.js` (sala isométrica, máquinas, personagens em pixel-art), `fabrica_motor.js` (roteiro, escolha do bloco,
-  diálogo, rolagem) e `fabrica.css`.
-- Botões: "Pular animação" (ou Esc), "Ocultar ajudantes" (canto superior direito), "Rever animação" (barra lateral) e o × do diálogo.
+  diálogo, rolagem), `fabrica_perso.js` (painel de personalização) e `fabrica.css`.
+- Botões: "Pular animação" (ou Esc), "Personalizar" e "Ocultar ajudantes" (canto superior direito), "Rever animação" e
+  "Personalizar" (barra lateral, em Ajudantes) e o × do diálogo.
   Clicar no diálogo mostra o texto inteiro na hora.
 - Os ajudantes somem no Perfil e em telas estreitas (área do conteúdo abaixo de 760 px). Com `prefers-reduced-motion`, a cena é pulada.
 - Velocidade da cena: `RITMO` no topo de `animacao.py`.

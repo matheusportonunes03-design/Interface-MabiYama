@@ -14,15 +14,34 @@ VARS_ESCURO = """
   --muted: oklch(26.5% .038 262); --muted-foreground: oklch(77% .03 255);
   --secondary: oklch(26.5% .038 262); --secondary-foreground: oklch(93% .01 250); --accent: oklch(29% .045 262);
   --primary: oklch(32% .06 262); --primary-foreground: oklch(98.4% .003 247.858);
-  --brand: oklch(62% .18 256); --brand-deep: oklch(76% .12 252); --brand-solid: oklch(52% .19 258);
+  --brand: oklch(64% .12 252); --brand-deep: oklch(78% .08 250); --brand-solid: oklch(45% .1 256);
   --tab-ativa: oklch(96% .02 250); --tab-ativa-txt: oklch(30% .12 262); --brand-sky: oklch(78% .1 228);
   --violet: oklch(74% .13 300); --violet-soft: oklch(31% .07 300); --amber: oklch(80% .15 72); --success: oklch(73% .15 155);
-  --chart-1: oklch(64% .17 254); --chart-2: oklch(80% .15 72); --chart-3: oklch(74% .13 300); --chart-4: oklch(78% .1 228);
+  --chart-1: oklch(64% .13 254); --chart-2: oklch(80% .15 72); --chart-3: oklch(74% .13 300); --chart-4: oklch(78% .1 228);
   --chart-5: oklch(68% .19 25);
   --gradient-header: linear-gradient(100deg, oklch(23% .08 264), oklch(36% .14 259) 58%, oklch(50% .11 232));
   --shadow-card: 0 6px 18px -8px rgb(0 0 0 / .55);
   color-scheme: dark;
 """
+
+
+@st.cache_data(show_spinner=False)
+def _logo_b64(nome: str, versao: int) -> str:
+    import base64
+    return "data:image/webp;base64," + base64.b64encode((MARCA / nome).read_bytes()).decode()
+
+
+def logo_uri(nome: str) -> str:
+    f = MARCA / nome
+    return _logo_b64(nome, f.stat().st_mtime_ns)
+
+
+BOLHAS_CAB = ('<div class="cab-bolhas" aria-hidden="true">'
+              + "".join(f'<i style="left:{x}%;width:{t}px;height:{t}px;animation-delay:{d}s;animation-duration:{v}s"></i>'
+                        for x, t, d, v in [(4, 7, 0, 9), (12, 4, 2.6, 6.5), (21, 6, 3.2, 7.5), (29, 9, 5.8, 10), (37, 5, 1.4, 8),
+                                           (46, 8, 6.9, 11), (52, 4, 4.1, 6.8), (61, 6, .7, 8.6), (66, 10, 2.3, 10.5), (73, 5, 7.6, 7.2),
+                                           (79, 7, 5.4, 9.2), (85, 4, .3, 6.2), (90, 8, 3.9, 9.8), (96, 5, 6.1, 7.4)])
+              + "</div>")
 
 
 def escuro() -> bool:
@@ -80,6 +99,7 @@ ICONES_SECAO = {
     "tabela": '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>',
     "tema": '<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
     "gota": '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+    "ajud": '<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/>',
 }
 
 
@@ -162,6 +182,21 @@ def css_tema():
 [data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{ background: color-mix(in oklab, var(--brand) 16%, var(--card)) !important;
   border-color: var(--brand) !important; color: var(--brand-deep) !important; }}
 [data-testid="stSidebar"] .stButton button p {{ font-size: .8125rem !important; font-weight: 700; }}
+.cab-marca {{ display: flex; align-items: center; gap: .6rem; }}
+.cab-marca img {{ height: 40px; width: auto; filter: drop-shadow(0 2px 6px rgb(0 0 0 / .22)); margin: -10px 0 -6px; }}
+.st-key-cab [data-testid="stElementContainer"]:has(.cab-bolhas) {{ position: absolute !important; inset: 0; width: auto !important; height: auto !important;
+  margin: 0 !important; z-index: -1; pointer-events: none; }}
+.cab-bolhas {{ position: absolute; inset: 0; pointer-events: none; overflow: hidden; }}
+.cab-bolhas i {{ position: absolute; bottom: 14px; border-radius: 50%; border: 1.5px solid rgb(225 240 255 / .7);
+  background: radial-gradient(circle at 32% 30%, rgb(255 255 255 / .55) 0 22%, rgb(255 255 255 / .1) 24%); animation: cabBolha linear infinite; }}
+.stApp .st-key-fm_escolha.st-key-fm_escolha .stButton button {{ background: var(--card) !important; color: var(--foreground) !important;
+  border: 1px solid var(--input) !important; height: 2.5rem; padding: 0 .9rem; }}
+.stApp .st-key-fm_escolha.st-key-fm_escolha .stButton button:hover:not(:disabled) {{ background: var(--accent) !important; border-color: var(--brand) !important; }}
+.stApp .st-key-fm_escolha.st-key-fm_escolha .stButton button:disabled {{ opacity: .45; }}
+@keyframes cabBolha {{ 0% {{ transform: translateY(0); opacity: 0; }} 15% {{ opacity: .9; }} 100% {{ transform: translateY(-190px) translateX(6px); opacity: 0; }} }}
+/* barra lateral abre e fecha devagar */
+section[data-testid="stSidebar"] {{ transition: min-width .35s ease, width .35s ease, transform .35s ease !important; }}
+section[data-testid="stSidebar"][aria-expanded="false"] {{ min-width: 0 !important; }}
 /* ---------- aparência */
 .st-key-tema_box [data-testid="stButtonGroup"] {{ width: 100%; }}
 .st-key-tema_box [data-testid="stButtonGroup"] > div {{ width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; }}
@@ -179,8 +214,8 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
 [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.lb-titulo) {{ margin-top: .85rem; }}
 .lb-titulo {{ display: flex; align-items: center; gap: .55rem; margin: 0 0 .2rem; min-height: 26px; }}
 .lb-titulo .ic {{ flex: 0 0 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; color: #fff;
-  background: linear-gradient(135deg, var(--brand-deep), var(--brand) 55%, var(--brand-sky));
-  box-shadow: 0 4px 10px -4px color-mix(in oklab, var(--brand) 70%, transparent); }}
+  background: linear-gradient(135deg, oklch(36% .12 262), oklch(52% .13 255));
+  box-shadow: 0 3px 8px -4px rgb(20 40 90 / .5); }}
 [data-testid="stSidebar"] .lb-titulo .tx {{ font-size: .78rem !important; font-weight: 800; letter-spacing: .09em; text-transform: uppercase;
   color: var(--foreground); white-space: nowrap; }}
 .lb-titulo::after {{ content: ""; flex: 1; height: 2px; border-radius: 2px; margin-left: .15rem;
@@ -194,7 +229,8 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
   background: color-mix(in oklab, var(--amber) 12%, var(--card)); padding: .55rem .75rem; }}
 .lb-celula .r {{ font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }}
 .lb-celula .v {{ font-size: 1.15rem; font-weight: 800; color: var(--foreground); word-break: break-word; }}
-@media (prefers-reduced-motion: reduce) {{ .st-key-cab::before, .st-key-cab, .st-key-pf_cab, .lb-onda {{ animation: none; }} }}
+@media (prefers-reduced-motion: reduce) {{ .st-key-cab::before, .st-key-cab, .st-key-pf_cab, .lb-onda, .cab-bolhas i {{ animation: none; }}
+  section[data-testid="stSidebar"] {{ transition: none !important; }} }}
 """
     if escuro():
         css += f"""
@@ -228,7 +264,13 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
   border-color: var(--input) !important; }}
 .stApp button[data-variant="pills"] p, .stApp button[data-variant="segmented_control"] p {{ color: inherit !important; }}
 .stApp button[data-variant="pills"][aria-pressed="true"], .stApp button[data-variant="segmented_control"][aria-checked="true"] {{
-  background: color-mix(in oklab, var(--brand) 24%, var(--card)) !important; border-color: var(--brand) !important; color: #fff !important; }}
+  background: color-mix(in oklab, var(--brand) 20%, var(--card)) !important; border-color: color-mix(in oklab, var(--brand) 45%, var(--border)) !important;
+  color: var(--foreground) !important; }}
+.stApp button[data-variant]:focus, .stApp button[data-variant]:focus-visible, .stApp button[data-variant][data-focused],
+.stApp button[data-variant][data-focus-visible] {{ box-shadow: none !important; outline: none !important; }}
+.stApp button[data-variant]:focus-visible {{ outline: 2px solid color-mix(in oklab, var(--brand) 50%, transparent) !important; outline-offset: 1px; }}
+.stApp [data-testid="stDataFrame"] [data-testid="stElementToolbar"], .stApp [data-testid="stDataFrame"] [data-testid="stElementToolbarButtonContainer"] {{
+  background: #f3f5f9 !important; }}
 .stApp [data-testid="stBaseButton-pills"], .stApp [data-testid="stBaseButton-segmented_control"],
 .stApp [data-testid="stBaseButton-secondary"] {{ background: var(--card) !important; color: var(--foreground) !important; border-color: var(--input) !important; }}
 .stApp [data-testid="stBaseButton-pillsActive"], .stApp [data-testid="stBaseButton-segmented_controlActive"] {{
@@ -244,8 +286,8 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
 .st-key-marca img {{ filter: drop-shadow(0 6px 16px rgb(0 0 0 / .45)); }}
 .stApp .stDownloadButton button, .stApp [data-testid="stBaseButton-primary"] {{ background: var(--brand-solid) !important; border-color: var(--brand-solid) !important; color: #fff !important; }}
 .stApp .stDownloadButton button:hover {{ background: var(--brand) !important; }}
-[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{ background: color-mix(in oklab, var(--brand) 30%, var(--card)) !important;
-  border-color: var(--brand) !important; color: #fff !important; }}
+[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{ background: color-mix(in oklab, var(--brand) 22%, var(--card)) !important;
+  border-color: color-mix(in oklab, var(--brand) 45%, var(--border)) !important; color: var(--foreground) !important; }}
 [data-testid="stSidebar"] .stButton button {{ background: var(--secondary) !important; }}
 .stApp .st-key-pg .stButton button {{ background: var(--brand-solid) !important; color: #fff !important; }}
 .stApp .st-key-abas button {{ background: transparent !important; color: rgb(255 255 255 / .86) !important; border: 1px solid rgb(255 255 255 / .18) !important; }}
@@ -266,7 +308,8 @@ def marca_lateral(nome: str):
 
 
 SECAO_ICONE = {"Navegação": "nav", "Previsão": "dia", "Análise exploratória": "eda", "Sobre o modelo": "modelo", "Simulador": "sim",
-               "Ficha da máquina": "maq", "Sensores": "sensor", "Navegar na tabela": "tabela", "Aparência": "tema"}
+               "Ficha da máquina": "maq", "Sensores": "sensor", "Navegar na tabela": "tabela", "Aparência": "tema",
+               "Ajudantes": "ajud"}
 
 
 def secao(titulo: str):

@@ -313,6 +313,44 @@ function discoSomb(cx, cy, r, base, luz, sombra_, borda) {
 }
 
 var PELE = '#f0c08a', PELES = '#d79f68', CAMISA = '#6d7f96', CAMISAS = '#586a80', JEANS = '#34507f', CABELO = '#5a3b22', LUVA = '#e8a317';
+var CALCADO = '#3b2c22', CAPA_C = '#ffc21a', CAPA_S = '#e5a400', COLETE = '#ff7a1a', FAIXA = '#eef5a8';
+/* aparência do operário (personalizável): cores e cabelo. tom(hex, f) escurece (f<1) ou clareia (f>1) uma cor */
+function tom(hex, f) {
+  var n = parseInt(String(hex).replace('#', ''), 16); if (isNaN(n)) return hex;
+  var r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+  if (f < 1) { r *= f; g *= f; b *= f; } else { r += (255 - r) * (f - 1); g += (255 - g) * (f - 1); b += (255 - b) * (f - 1); }
+  return '#' + [r, g, b].map(function (v) { v = Math.round(clamp(v, 0, 255)).toString(16); return v.length < 2 ? '0' + v : v; }).join('');
+}
+var VISUAL_PADRAO = { sexo: 'm', pele: '#f0c08a', cabelo: 'curto', corCabelo: '#5a3b22', barba: false, camisa: '#6d7f96', calca: '#34507f',
+  calcado: '#3b2c22', capacete: '#ffc21a', colete: '#ff7a1a', luva: '#e8a317' };
+function aplicarVisual(v) {
+  v = v || VISUAL_PADRAO;
+  PELE = v.pele; PELES = tom(v.pele, .86); CAMISA = v.camisa; CAMISAS = tom(v.camisa, .8); JEANS = v.calca; CABELO = v.corCabelo;
+  LUVA = v.luva; CALCADO = v.calcado; CAPA_C = v.capacete; CAPA_S = tom(v.capacete, .86); COLETE = v.colete;
+  FAIXA = tom(v.colete, 1.75);
+}
+/* cabelo de frente (antes do rosto) e de costas */
+function cabeloFrente(v, hy, lado) {
+  var c = CABELO, cl = tom(CABELO, 1.25), st = v.cabelo;
+  if (st === 'raspado') { R(-5, -31 + hy, 10, 1.6, c); R(-5, -29.4 + hy, 1, 2, c); R(4, -29.4 + hy, 1, 2, c); return; }
+  if (st === 'cacheado') {
+    R(-6.4, -32.6 + hy, 12.8, 4.4, c); R(-6.6, -29 + hy, 2, 5.4, c); R(4.6, -29 + hy, 2, 5.4, c);
+    for (var i = 0; i < 6; i++) R(-5.6 + i * 2.1, -32.4 + hy + (i % 2) * .9, 1, 1, cl);
+    R(-6.2, -26.6 + hy, 1, 1, cl); R(5.4, -27.4 + hy, 1, 1, cl); return;
+  }
+  R(-5, -31 + hy, 10, 3, c);
+  if (st === 'longo') { R(-5.4, -31.4 + hy, 10.8, 3.4, c); R(-6, -29 + hy, 1.8, 10.5, c); R(4.2, -29 + hy, 1.8, 10.5, c); R(-5.6, -28.4 + hy, .6, 8, cl); return; }
+  R(-5, -28 + hy, 1.4, 3, c); R(3.6, -28 + hy, 1.4, 3, c);
+  if (st === 'rabo') { var lx = lado > 0 ? -7.2 : 5; Ob(lx, -29 + hy, 2.2, 7.5, c); R(lx + .3, -29.4 + hy, 1.6, 1.2, tom(v.camisa, 1)); }
+}
+function cabeloCostas(v, hy) {
+  var c = CABELO, st = v.cabelo;
+  if (st === 'raspado') { R(-5, -31 + hy, 10, 5, c); R(-5, -26 + hy, 10, 4, PELES); return; }
+  if (st === 'cacheado') { R(-6.4, -32.6 + hy, 12.8, 11, c); R(-5, -22 + hy, 10, 1, PELES); return; }
+  if (st === 'longo') { R(-5.8, -31.2 + hy, 11.6, 13.4, c); return; }
+  R(-5, -31 + hy, 10, 9, c); R(-5, -23 + hy, 10, 2, PELES);
+  if (st === 'rabo') { R(-1.4, -27 + hy, 2.8, 1.4, tom(v.camisa, 1)); Ob(-1.2, -25.6 + hy, 2.4, 7.4, c); }
+}
 
 function pontaBraco(lado, ky, cor, luva, camisa) {
   // braço esticado na horizontal (lado=+1 direita / -1 esquerda) com leve inclinação ky (-1 cima, +1 baixo)
@@ -327,17 +365,18 @@ function operador(a, sx, sy, k) {
   var e = a.eq, d = a.dir, costas = d === 'nw' || d === 'ne', lado = (d === 'se' || d === 'ne') ? 1 : ((d === 'sw' || d === 'nw') ? -1 : 0);
   var s = a.andando ? Math.sin(a.fase) : 0, la = Math.round(s * 2), hy = (!a.andando && Math.sin(a.t * 2.6) > .55) ? 0 : 0;
   var tr = a.pose === 'ocupado' ? -2 : 0; // braços levantados trabalhando
+  var V = a.visual || VISUAL_PADRAO; aplicarVisual(V);
   sombra(8.5);
   // pernas
   var ev = Math.max(la, 0), dv = Math.max(-la, 0);
   Ob(-4.5, -9 + ev, 4, 9 - ev, JEANS); Ob(.5, -9 + dv, 4, 9 - dv, JEANS);
-  Ob(-5 + lado * .5, -2 - ev, 5, 2, '#3b2c22'); Ob(0 + lado * .5, -2 - dv, 5, 2, '#3b2c22');
+  Ob(-5 + lado * .5, -2 - ev, 5, 2, CALCADO); Ob(0 + lado * .5, -2 - dv, 5, 2, CALCADO);
   if (e.botas) { R(-5 + lado * .5, -2 - ev, 5, .8, '#9aa5b5'); R(0 + lado * .5, -2 - dv, 5, .8, '#9aa5b5'); }
   // tronco
   Ob(-5, -20, 10, 11, CAMISA); R(-5, -10, 10, 1, CAMISAS);
   if (e.colete) {
-    if (costas) { R(-5, -20, 10, 11, COR.laranja); R(-4, -20, 1.6, 11, '#eef5a8'); R(2.4, -20, 1.6, 11, '#eef5a8'); R(-5, -14, 10, 1.4, '#eef5a8'); }
-    else { R(-5, -20, 3.6, 11, COR.laranja); R(1.4, -20, 3.6, 11, COR.laranja); R(-4.2, -20, 1.4, 11, '#eef5a8'); R(2.8, -20, 1.4, 11, '#eef5a8'); R(-5, -14, 3.6, 1.2, '#eef5a8'); R(1.4, -14, 3.6, 1.2, '#eef5a8'); R(-1.4, -20, 2.8, 11, CAMISA); }
+    if (costas) { R(-5, -20, 10, 11, COLETE); R(-4, -20, 1.6, 11, FAIXA); R(2.4, -20, 1.6, 11, FAIXA); R(-5, -14, 10, 1.4, FAIXA); }
+    else { R(-5, -20, 3.6, 11, COLETE); R(1.4, -20, 3.6, 11, COLETE); R(-4.2, -20, 1.4, 11, FAIXA); R(2.8, -20, 1.4, 11, FAIXA); R(-5, -14, 3.6, 1.2, FAIXA); R(1.4, -14, 3.6, 1.2, FAIXA); R(-1.4, -20, 2.8, 11, CAMISA); }
   }
   // braços
   var bl = Math.round(-s * 1.6) + tr, br = Math.round(s * 1.6) + tr;
@@ -358,13 +397,16 @@ function operador(a, sx, sy, k) {
   }
   // cabeça
   Ob(-5, -31 + hy, 10, 10, PELE); R(-1.5, -21 + hy, 3, 1.6, PELES);
-  if (costas) { R(-5, -31 + hy, 10, 9, CABELO); R(-5, -23 + hy, 10, 2, PELES); }
+  if (costas) cabeloCostas(V, hy);
   else {
-    R(-5, -31 + hy, 10, 3, CABELO); R(-5, -28 + hy, 1.4, 3, CABELO); R(3.6, -28 + hy, 1.4, 3, CABELO);
-    var ex = lado * 1.2;
+    cabeloFrente(V, hy, lado);
+    var ex = lado * 1.2, fem = V.sexo === 'f';
     R(-3 + ex, -26.5 + hy, 1.8, 2.2, INK); R(1.4 + ex, -26.5 + hy, 1.8, 2.2, INK); R(-2.6 + ex, -26.5 + hy, .7, .7, '#fff'); R(1.8 + ex, -26.5 + hy, .7, .7, '#fff');
+    if (fem) { R(-3.8 + ex, -27.2 + hy, 1, .8, INK); R(3 + ex, -27.2 + hy, 1, .8, INK); var g0 = G.ctx.globalAlpha; G.ctx.globalAlpha = g0 * .55; R(-4.4 + ex, -24 + hy, 1.6, 1, '#ff8fa3'); R(3 + ex, -24 + hy, 1.6, 1, '#ff8fa3'); G.ctx.globalAlpha = g0; }
     R(.1 + ex, -24.6 + hy, 1.3, 1.5, PELES);
-    if (a.fala) { var ab = Math.abs(Math.sin(a.t * 14)) > .5; R(-1.3 + ex, -22.6 + hy, 2.8, ab ? 1.8 : 1, '#8f3b32'); } else R(-1.2 + ex, -22.4 + hy, 2.6, 1, '#8f3b32');
+    if (V.barba) { var cb = CABELO; R(-5, -25.4 + hy, 1.3, 4.6, cb); R(3.7, -25.4 + hy, 1.3, 4.6, cb); R(-5, -21.6 + hy, 10, 1.6, cb); R(-2.6 + ex, -23.7 + hy, 5.2, 1, cb); }
+    var boca = fem ? '#c94a5a' : '#8f3b32';
+    if (a.fala) { var ab = Math.abs(Math.sin(a.t * 14)) > .5; R(-1.3 + ex, -22.6 + hy, 2.8, ab ? 1.8 : 1, boca); } else R(-1.2 + ex, -22.4 + hy, 2.6, 1, boca);
     if (e.oculos) {
       R(-5.4, -27.5 + hy, 10.8, 1.2, '#1f2937'); var g = G.ctx.globalAlpha; G.ctx.globalAlpha = g * .9;
       R(-4.6 + ex, -28.2 + hy, 3.8, 3.4, '#a6e8ff'); R(.8 + ex, -28.2 + hy, 3.8, 3.4, '#a6e8ff'); G.ctx.globalAlpha = g;
@@ -372,8 +414,8 @@ function operador(a, sx, sy, k) {
     }
   }
   if (e.capacete) {
-    Ob(-6, -37 + hy, 12, 7, COR.amarelo); R(-1, -38 + hy, 2, 8, '#e5a400'); R(-4.6, -36 + hy, 2.4, 1.2, '#fff0a8');
-    Ob(-7.5, -31 + hy, 15, 2.2, '#e5a400'); R(-7.5, -29.8 + hy, 15, .9, '#b37f00');
+    Ob(-6, -37 + hy, 12, 7, CAPA_C); R(-1, -38 + hy, 2, 8, CAPA_S); R(-4.6, -36 + hy, 2.4, 1.2, tom(CAPA_C, 1.6));
+    Ob(-7.5, -31 + hy, 15, 2.2, CAPA_S); R(-7.5, -29.8 + hy, 15, .9, tom(CAPA_C, .7));
   }
 }
 

@@ -21,10 +21,10 @@ from pathlib import Path
 
 RITMO = 1.0  # velocidade da cena de boas-vindas: 1 = normal (~25 s); 2 = o dobro da velocidade; 0.7 = mais lenta
 FRONT = Path(__file__).resolve().parent / "frontend"
-ARQS = ("fabrica_cena.js", "fabrica_motor.js", "fabrica.css")
+ARQS = ("fabrica_cena.js", "fabrica_motor.js", "fabrica_perso.js", "fabrica.css")
 
 CAPA_CSS = """<style>
-.mby-capa{position:fixed;inset:0;z-index:2147483001;background:#143a85;overflow:hidden;display:grid;place-items:center;transition:opacity .6s;animation:mbyFalha .5s 10s forwards}
+.mby-capa{position:fixed;inset:0;z-index:2147483001;background:#143a85;overflow:hidden;display:grid;place-items:center;transition:opacity .6s;animation:mbyFalha .5s 18s forwards}
 .mby-capa::before{content:"";position:absolute;inset:-30px;background:var(--mby-bg,linear-gradient(#143a85,#4f8fe0)) center/cover no-repeat;filter:blur(10px)}
 .mby-capa p{position:relative;color:#fff;font:800 13px "Nunito",system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;animation:mbyPisca 1.1s ease-in-out infinite}
 @keyframes mbyPisca{50%{opacity:.35}}@keyframes mbyFalha{to{opacity:0;visibility:hidden}}
@@ -120,7 +120,7 @@ def blocos_modelo(d: dict, dia_idx: int = 0, lista: list[dict] | None = None) ->
         _b("Raio-X da falha", "Raio-X", "Dá para ver você pensando?",
            "Dá! Aperte o play: a linha de cima é o sensor da peça e a de baixo é a evidência que eu junto hora a hora até o corte das 05:00."),
         _b("Resumo da última previsão", "Resumo", "Fechando: qual é a janela de hoje?",
-           f"Das 05:00 de {dia['execCurto']} até 06:00 de {dia['fimCurto']}, cobrindo {k['maquinas']} máquinas. Boa manutenção, Beto!"),
+           f"Das 05:00 de {dia['execCurto']} até 06:00 de {dia['fimCurto']}, cobrindo {k['maquinas']} máquinas. Boa manutenção, {{beto}}!"),
     ]
 
 
@@ -154,8 +154,11 @@ def blocos_eda(d: dict, graficos: list[dict] | None = None) -> list[dict]:
         _b("Falhas por modelo", "Modelos", "Algum modelo de máquina é pior?", f"O {mod['m']}: {_br(mod['falhas'], 1)} falhas por máquina, a maior taxa."),
         _b("Qualidade da base", "Qualidade", "Dá para confiar nesses dados?",
            f"Depois do tratamento, nenhuma tabela passa de {_br(miss, 1)}% de vazios. Base limpa, previsão melhor."),
-        _b("Análises da Etapa 3", "Galeria", "E esses gráficos aqui embaixo?",
-           "São as análises da Etapa 3. Clique em um para ampliar; eu conto o que ele mostra quando ele estiver no meio da tela.", cont="div"),
+        _b("Principais análises", "Principais", "Por que só esses gráficos?",
+           "São os sete que mais explicam as falhas. Cada um tem um botão Insight com a conclusão; o resto da Etapa 3 fica logo abaixo.", cont=".ga-tit"),
+        _b("Todas as análises da Etapa 3", "Galeria", "E se eu quiser ver tudo?",
+           "Abra Ver todas as análises: são os 23 gráficos da Etapa 3, separados por tema. Clique na imagem para ampliar e "
+           "passe o mouse em cima de um que eu explico.", cont=".ga"),
     ]
     perguntas = ["E esse gráfico?", "O que esse aqui mostra?", "Floco, me explica esse?", "E este, o que diz?"]
     for i, g in enumerate(graficos or []):
@@ -168,9 +171,9 @@ def blocos_maquinas() -> list[dict]:
         _b("Replay da frota", "Replay", "Que mapa é esse, Floco?",
            "É a fábrica inteira em 2023. Cada bomba é uma máquina e a cor é o risco que eu dei às 05:00. "
            "Quando quebra de verdade, ela pulsa: verde se eu tinha avisado, vermelho se escapou."),
-        _b("Maior risco no teste", "Ficha", "E a ficha da máquina?",
-           "Cadastro da máquina escolhida na barra lateral e o maior risco que eu dei para ela no período de teste. "
-           "Use Anterior e Próxima para percorrer a frota."),
+        _b("Ficha da máquina", "Ficha", "E a ficha da máquina?",
+           "Cadastro da máquina escolhida e o maior risco que eu dei para ela no período de teste. "
+           "Troque de máquina no seletor do topo da página ou na barra lateral; as setas percorrem a frota."),
         _b("Risco previsto no período de teste", "Risco no teste", "O que são essas bolinhas?",
            "Cada bolinha é um dia de grade de uma peça. Quanto maior, mais risco eu vejo. Fora desses dias o risco é quase zero."),
         _b("=Histórico", "Histórico", "E o passado dela?",
@@ -235,10 +238,10 @@ def configurar(d: dict, aba: str, nome: str = "", dia_idx: int = 0, tok: str = "
 # ------------------------------------------------------------------ motor JS e HTML do injetor
 @lru_cache(maxsize=4)
 def _motor(chave: str) -> tuple[str, str]:
-    cena, motor, css = [(FRONT / n).read_text(encoding="utf-8") for n in ARQS]
-    versao = hashlib.md5((cena + motor + css).encode()).hexdigest()[:10]
+    cena, motor, perso, css = [(FRONT / n).read_text(encoding="utf-8") for n in ARQS]
+    versao = hashlib.md5((cena + motor + perso + css).encode()).hexdigest()[:10]
     motor = motor.replace("'@@VERSAO@@'", json.dumps(versao)).replace("'@@CSS@@'", json.dumps(css))
-    return versao, "(function(){'use strict';\n" + cena + "\n" + motor + "\n})();"
+    return versao, "(function(){'use strict';\n" + cena + "\n" + motor + "\n" + perso + "\nboot();\n})();"
 
 
 def motor_js() -> tuple[str, str]:
@@ -293,8 +296,13 @@ def login():
 
 
 def reiniciar():
-    """Faz a animação tocar de novo no próximo rerun (botão "Rever animação")."""
+    """Faz a animação tocar de novo no próximo rerun (botão "Rever animação"), desde a fábrica vista de fora."""
     _st().session_state.mby_tok = uuid.uuid4().hex
+
+
+def personalizar():
+    """Abre o painel de personalização do operário no próximo rerun (botão "Personalizar operário")."""
+    _st().session_state.mby_perso = uuid.uuid4().hex
 
 
 def montar(d: dict, aba: str, dia_idx: int = 0, lista: list[dict] | None = None, graficos: list[dict] | None = None):
@@ -304,5 +312,7 @@ def montar(d: dict, aba: str, dia_idx: int = 0, lista: list[dict] | None = None,
     fonte = "arquivo enviado nesta sessão" if st.session_state.get("previsao") else "última previsão do time"
     gr = [{"n": g["n"], "titulo": g["titulo"], "insight": g.get("insight", "")} for g in (graficos or [])]
     cfg = configurar(d, aba, st.session_state.get("usuario", {}).get("nome", ""), dia_idx, tok, intro, fonte, lista, gr)
+    if st.session_state.get("mby_perso"):
+        cfg["abrirPerso"] = st.session_state.pop("mby_perso")
     html_iframe(gerar_html(cfg), 1, alt="mby")
     st.session_state.mby_tocado = tok
