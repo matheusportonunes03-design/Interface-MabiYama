@@ -299,7 +299,7 @@ def tela_login():
             st.markdown("""<h2 style="font-size:1.5rem;line-height:2rem;font-weight:800;color:var(--foreground)">Acesse sua frota</h2>
               <p style="margin:.25rem 0 0;font-size:.875rem;color:var(--muted-foreground)">Bem-vindo à MaBiYama.</p>""", unsafe_allow_html=True)
             with st.form("form_login", border=False, enter_to_submit=True):
-                usuario = st.text_input("usuario", key="usuario", autocomplete="usuario", placeholder="Usuário")
+                usuario = st.text_input("Usuário", key="usuario", autocomplete="usuario", placeholder="Usuário")
                 senha = st.text_input("Senha", type="password", key="senha", autocomplete="current-password")
                 esqueci = st.form_submit_button("Esqueci minha senha", key="esqueci")
                 entrar = st.form_submit_button("Entrar", key="entrar", width="stretch")
