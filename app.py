@@ -292,7 +292,7 @@ def tela_login():
                 chips = (f'<div class="mare-chips"><span><i style="background:#5ee0a0"></i>Previsão pronta · 05:00 de {ex}</span>'
                          f'<span><i style="background:#f5a524"></i>{alto} peça{"s" if alto != 1 else ""} acima de 50%</span>'
                          f'<span><i style="background:#8fd3ff"></i>{jan} peças na janela de risco</span></div>')
-            st.markdown('<h1 class="mare-h1">Cada bomba da frota, acompanhada antes de parar.</h1>'
+            st.markdown('<h1 class="mare-h1">Cada máquina da frota, acompanhada antes de parar.</h1>'
                         '<p class="mare-p">Painel de manutenção preditiva: previsão diária às 05:00, prioridades da equipe e o histórico de cada máquina.</p>'
                         + chips, unsafe_allow_html=True)
         with st.container(key="login"):
