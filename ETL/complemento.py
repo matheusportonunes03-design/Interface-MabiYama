@@ -1,4 +1,4 @@
-"""Trata um CSV novo, acrescenta suas linhas e atualiza a integração da frota."""
+"""Trata um lote de CSVs, acrescenta suas linhas e atualiza a integração da frota."""
 
 import argparse
 import json
@@ -23,13 +23,16 @@ INTEGRADA = "base_integrada_maquina_dia"
 RELATORIO = "relatorio_qualidade.md"
 
 
-def _tratar(base, bruto, historico, publicados, reg):
+def _tratar(base, bruto, historico, publicados, entrada, reg):
     modulo = import_module(f"{base}_tratamento")
     opcoes = {}
     if base in ("falhas", "manutencao"):
         outra = "manutencao" if base == "falhas" else "falhas"
         eventos = pd.read_parquet(publicados / f"{outra}_corrigido.parquet", columns=EVENTO)
         eventos["data_hora"] = c.para_datetime(eventos["data_hora"])
+        novos_eventos = c.chaves_evento(entrada / f"{outra}.csv")
+        if novos_eventos is not None:
+            eventos = pd.concat([eventos, novos_eventos], ignore_index=True)
         opcoes[f"chaves_{outra}"] = eventos.dropna()
     if base == "falhas":
         normais = historico.loc[historico["flag_horario_atipico"].eq(0), "data_hora"]
@@ -77,32 +80,30 @@ def _parquet(tabela, destino):
     tabela.to_parquet(destino, compression="zstd", index=False)
 
 
-def _relatorio(anterior, novo, base, destino):
+def _relatorio(anterior, novo, bases_atualizadas, destino):
     secoes = anterior.read_text(encoding="utf-8").split("\n## ")
     atualizadas = dict(s.split("\n", 1) for s in novo.read_text(encoding="utf-8").split("\n## ")[1:])
-    for titulo in (base, "integracao"):
+    for titulo in (*bases_atualizadas, "integracao"):
         for indice, secao in enumerate(secoes[1:], start=1):
             if secao.split("\n", 1)[0] != titulo:
                 continue
             previa = secao.split("\n### Último complemento", 1)[0].rstrip()
             secoes[indice] = (f"{previa}\n\n### Último complemento\n{atualizadas[titulo]}"
-                              if titulo == base else f"{titulo}\n{atualizadas[titulo]}")
+                              if titulo != "integracao" else f"{titulo}\n{atualizadas[titulo]}")
             break
         else:
             secoes.append(f"{titulo}\n{atualizadas[titulo]}")
     destino.write_text("\n## ".join(secoes), encoding="utf-8")
 
 
-def executar(base: str, publicados: Path, trabalho: Path):
-    entrada, tratados = c.caminhos(trabalho / "dados")
-    destino = trabalho / "parquet"
+def _incorporar(base, publicados, entrada, tratados, destino, trabalho):
     arquivo = f"{base}_corrigido"
     print(f"== {base}: tratando novas linhas")
     historico = pd.read_parquet(publicados / f"{arquivo}.parquet")
     bruto = c.ler_csv(entrada / f"{base}.csv")
     reg = c.Registro(base)
-    novas, casas = _tratar(base, bruto, historico, publicados, reg)
-    resumo = {"adicionadas": 0, "base": arquivo, "preenchidas": 0,
+    novas, casas = _tratar(base, bruto, historico, publicados, entrada, reg)
+    resumo = {"adicionadas": 0, "preenchidas": 0, "ignoradas": 0, "total": len(historico),
               "descartadas": 0 if reg.rejeitados is None else len(reg.rejeitados)}
     if not novas.empty:
         temporario = c.salvar_csv(novas, trabalho / "novas_tratadas.csv", decimais=casas)
@@ -110,20 +111,32 @@ def executar(base: str, publicados: Path, trabalho: Path):
         resumo.update(adicionadas=adicionadas, preenchidas=preenchidas,
                       ignoradas=len(novas) - adicionadas, total=len(total))
     del historico, novas, bruto
-    (trabalho / "resumo_complemento.json").write_text(json.dumps(resumo), encoding="utf-8")
     if not resumo["adicionadas"]:
-        return
+        return resumo
 
-    destino.mkdir()
     reg.adicionar("Novas linhas tratadas incorporadas", resumo["adicionadas"], "incluídas na tabela existente",
                   f"{resumo['preenchidas']} preencheram lacunas e {resumo['ignoradas']} já tinham registro correspondente.")
     reg.resumo["linhas_saida"] = resumo["total"]
     reg.salvar(tratados)
     _parquet(total, destino / f"{arquivo}.parquet")
     c.salvar_csv(total, tratados / f"{arquivo}.csv")
-    del total
+    return resumo
+
+
+def executar(bases: list[str], publicados: Path, trabalho: Path):
+    entrada, tratados = c.caminhos(trabalho / "dados")
+    destino = trabalho / "parquet"
+    destino.mkdir()
+    tabelas = {base: _incorporar(base, publicados, entrada, tratados, destino, trabalho) for base in bases}
+    atualizadas = [base for base, resumo in tabelas.items() if resumo["adicionadas"]]
+    resumo = {"adicionadas": sum(r["adicionadas"] for r in tabelas.values()),
+              "tabelas": {f"{base}_corrigido": r for base, r in tabelas.items()}}
+    (trabalho / "resumo_complemento.json").write_text(json.dumps(resumo), encoding="utf-8")
+    if not atualizadas:
+        return
+
     for outra in BASES:
-        if outra == base:
+        if outra in atualizadas:
             continue
         nome = f"{outra}_corrigido"
         original = publicados / f"{nome}.parquet"
@@ -131,14 +144,14 @@ def executar(base: str, publicados: Path, trabalho: Path):
         shutil.copyfile(original, destino / original.name)
     integracao.executar(trabalho / "dados", so_integrar=True)
     _parquet(pd.read_csv(tratados / f"{INTEGRADA}.csv", encoding="utf-8-sig"), destino / f"{INTEGRADA}.parquet")
-    _relatorio(publicados / RELATORIO, tratados / RELATORIO, base, destino / RELATORIO)
+    _relatorio(publicados / RELATORIO, tratados / RELATORIO, atualizadas, destino / RELATORIO)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("base", choices=BASES)
+    parser.add_argument("bases", nargs="+", choices=BASES)
     parser.add_argument("publicados", type=Path)
     parser.add_argument("trabalho", type=Path)
     args = parser.parse_args()
-    executar(args.base, args.publicados, args.trabalho)
+    executar(args.bases, args.publicados, args.trabalho)
 

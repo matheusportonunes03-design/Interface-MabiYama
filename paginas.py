@@ -273,27 +273,26 @@ def _popover_brutas(repositorio, versao, pasta):
     if repositorio is None:
         st.info("A publicação requer um token do GitHub configurado nos Secrets e acesso ao repositório.")
         return
-    modo = st.radio("Modo de atualização", ("Substituir bases", "Complementar tabela"), horizontal=True)
-    complemento = modo == "Complementar tabela"
+    modo = st.radio("Modo de atualização", ("Substituir bases", "Complementar tabelas"), horizontal=True)
+    complemento = modo == "Complementar tabelas"
     if complemento:
-        st.caption("Envie um CSV bruto com as novas linhas. A tabela é identificada pelo cabeçalho.")
+        st.caption("Envie os CSVs brutos com as novas linhas, um por tabela. O cabeçalho identifica cada tabela.")
     else:
         st.caption("Envie os seis CSVs brutos completos para substituir as bases atuais.")
     with st.expander("Formato dos arquivos"):
         st.markdown(FORMATO_BRUTAS)
-    envio = st.file_uploader("CSV com novas linhas" if complemento else "Bases brutas (6 arquivos .csv)",
-                            type="csv", accept_multiple_files=not complemento,
-                            key=f"brutas_arqs_{modo}_{st.session_state.get('brutas_v', 0)}")
-    if not envio:
+    arqs = st.file_uploader("CSVs com novas linhas" if complemento else "Bases brutas (6 arquivos .csv)",
+                           type="csv", accept_multiple_files=True,
+                           key=f"brutas_arqs_{modo}_{st.session_state.get('brutas_v', 0)}")
+    if not arqs:
         return
-    arqs = [envio] if complemento else envio
     bases, problemas = atualizar_bases.identificar([(a.name, a.getvalue()) for a in arqs], exigir_todas=not complemento)
     for p in problemas:
         st.error(p)
     if problemas or not bases:
         return
     st.caption(" · ".join(atualizar_bases.TITULOS[b] for b in bases))
-    rotulo = f"Tratar e adicionar em {atualizar_bases.TITULOS[next(iter(bases))]}" if complemento else "Tratar e substituir as bases"
+    rotulo = "Tratar e adicionar linhas" if complemento else "Tratar e substituir as bases"
     if st.button(rotulo, key="brutas_ir", type="primary", width="stretch"):
         barra = st.progress(0.0, text="Começando o tratamento…")
 
@@ -359,12 +358,16 @@ def _barra_origem(repositorio, versao, pasta):
     publicacao = st.session_state.pop("trat_msg", None)
     if publicacao:
         resumo, commit = publicacao
-        if "adicionadas" in resumo:
-            titulo = TABELAS[resumo["base"]]["titulo"]
-            mensagem = (f"{titulo} recebeu {resumo['adicionadas']} linhas tratadas e agora tem {resumo['total']} linhas. "
-                        f"{resumo['ignoradas']} registros já existentes e {resumo['descartadas']} linhas inválidas foram ignorados.")
-            if resumo["preenchidas"]:
-                mensagem += f" {resumo['preenchidas']} linhas preencheram lacunas de telemetria."
+        if "tabelas" in resumo:
+            partes = []
+            for nome, tabela in resumo["tabelas"].items():
+                titulo = TABELAS[nome]["titulo"]
+                partes.append(f"{titulo} recebeu {tabela['adicionadas']} linhas e agora tem {tabela['total']} linhas.")
+                if tabela["ignoradas"] or tabela["descartadas"]:
+                    partes.append(f"Foram ignorados {tabela['ignoradas']} registros existentes e {tabela['descartadas']} linhas inválidas.")
+                if tabela["preenchidas"]:
+                    partes.append(f"{tabela['preenchidas']} leituras preencheram lacunas na telemetria.")
+            mensagem = "Complemento publicado no GitHub. " + " ".join(partes)
         else:
             partes = [f"{TABELAS[nome]['titulo']}: {linhas:,}".replace(",", ".") for nome, linhas in resumo["linhas"].items()]
             mensagem = "Bases tratadas publicadas no GitHub. " + " · ".join(partes) + "."

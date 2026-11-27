@@ -61,9 +61,9 @@ estão em dia/mês/ano ou mês/dia/ano (o Excel em inglês salva `10/1/2022 6:00
 Na aba **Dados tratados**, o botão **Atualizar com bases brutas** oferece dois modos.
 
 - **Substituir bases** usa os seis CSVs brutos completos e executa o ETL em todas as tabelas.
-- **Complementar tabela** recebe um único CSV bruto. O app identifica a tabela pelo cabeçalho, trata o envio e
-  acrescenta registros novos. Registros já publicados com a mesma chave são preservados. Uma leitura real pode
-  preencher uma lacuna da telemetria. O app refaz a integração a partir das tabelas atualizadas.
+- **Complementar tabelas** recebe um ou mais CSVs brutos, um por tabela. O app identifica cada tabela pelo cabeçalho,
+  trata o lote e acrescenta os registros novos. Registros já publicados com a mesma chave são preservados. Uma leitura
+  real pode preencher uma lacuna da telemetria. O app refaz a integração uma vez para o lote inteiro.
 
 Os CSVs brutos servem de entrada temporária. O PyGithub publica os resultados tratados em `dados/tratados/`, em um único
 commit na `main` do `Interface-MabiYama`. **Dados tratados** e **Máquinas** carregam as tabelas do mesmo commit.

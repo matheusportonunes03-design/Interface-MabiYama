@@ -120,11 +120,12 @@ def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Pat
 
 
 def complementar(bases: dict, publicados: Path, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
-    """Trata um CSV e o incorpora à versão publicada das tabelas."""
-    if len(bases) != 1:
-        raise ValueError("Envie um CSV por complemento.")
-    base = next(iter(bases))
+    """Trata os CSVs selecionados e os incorpora à mesma versão publicada."""
+    if not bases or bases.keys() - COLUNAS.keys():
+        raise ValueError("Envie pelo menos um CSV de uma tabela reconhecida.")
+    selecionadas = [base for base in ETAPAS if base in bases]
     _gravar_entrada(bases, pasta)
-    _executar_etl(ETL.with_name("complemento.py"), [base, publicados, pasta], [base, "integracao"], aviso)
+    _executar_etl(ETL.with_name("complemento.py"), [*selecionadas, publicados, pasta],
+                  [*selecionadas, "integracao"], aviso)
     resumo = json.loads((pasta / "resumo_complemento.json").read_text(encoding="utf-8"))
     return pasta / "parquet", resumo
