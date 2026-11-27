@@ -26,7 +26,7 @@ Se mudar classes no `painel.js`, gere o CSS de novo:
 `npx @tailwindcss/cli -i frontend/tw_entrada.css -o frontend/painel.css --minify`
 
 ## Dados (`dados/`)
-A pasta só tem arquivos **agregados**: nenhuma base da competição vai para o repositório.
+A pasta contém os agregados do painel e as tabelas tratadas em `dados/tratados/`.
 
 Gerados por `preparar_dados.py` a partir das bases tratadas (`*_corrigido.csv`):
 ```bash
@@ -59,9 +59,29 @@ python preparar_dados.py --bases <pasta>/tratados --so-tabelas   # converte para
 estão em dia/mês/ano ou mês/dia/ano (o Excel em inglês salva `10/1/2022 6:00`; antes isso virava 10 de janeiro).
 
 Na aba **Dados tratados**, o botão **Atualizar com bases brutas** recebe os 6 CSVs brutos (`atualizar_bases.py`): reconhece cada
-base pelo cabeçalho, roda o ETL num processo separado (~1 a 2 min, ~1 GB de pico), converte para Parquet e troca as tabelas da
-aba e da ficha das máquinas **só na sessão de quem enviou** (os arquivos ficam em `/tmp` do servidor e são apagados depois de
-1 dia). "Voltar às bases do projeto" desfaz. Os gráficos da Análise Exploratória e a previsão continuam os do projeto.
+base pelo cabeçalho, roda o ETL num processo separado (~1 a 2 min, ~1 GB de pico) e converte para Parquet. Os CSVs brutos
+servem de entrada temporária para o tratamento. O PyGithub publica apenas os sete Parquets e o relatório de qualidade
+em `dados/tratados/`, em um único commit na `main` do `Interface-MabiYama`. **Dados tratados** e **Máquinas** carregam
+as tabelas do mesmo commit quando a página é aberta ou atualizada.
+
+#### Ativar a publicação no GitHub
+
+1. Crie um token de acesso pessoal do GitHub do tipo *fine-grained*, com acesso apenas a `Interface-MabiYama` e
+   permissão de repositório **Contents: Read and write**. A `main` precisa permitir commits diretos da conta do token.
+2. Acrescente a seção abaixo aos Secrets existentes em **Settings → Secrets** no Streamlit Community Cloud, ou ao
+   `.streamlit/secrets.toml` para rodar localmente. Mantenha o bloco `[usuarios]` com os acessos do app.
+
+   ```toml
+   [bases_github]
+   token = "github_pat_..."
+   ```
+
+3. Abra **Dados tratados** e envie os seis CSVs. Use o link mostrado na confirmação para conferir o commit e abra
+   outra sessão para verificar as novas tabelas.
+
+As tabelas tratadas, o relatório e seu histórico ficam públicos no GitHub. Cada arquivo publicado precisa caber no
+limite de 100 MiB. Se outro commit avançar a `main` durante o envio, o aplicativo mantém a versão já publicada e pede
+que o usuário confira a versão atual antes de tentar novamente.
 
 `ferramentas/integracao.py` é uma reimplementação só da etapa de integração (lê os `*_corrigido` em CSV ou Parquet), também
 conferida contra a base integrada; o caminho oficial é `ETL/integracao.py`.

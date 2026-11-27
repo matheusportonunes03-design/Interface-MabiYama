@@ -1,19 +1,24 @@
 """Abas nativas do Streamlit: "Máquinas" (ficha de cada máquina) e "Dados tratados" (explorador das bases completas).
 
-As bases tratadas ficam em dados/tratados/*.parquet (geradas por `python preparar_dados.py --bases <pasta> --tabelas`).
+As bases ficam em dados/tratados/*.parquet no repositório da interface.
 """
+import logging
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 import atualizar_bases
 import tema
+from bases_persistentes import BaseMuitoGrande, PublicacaoConcorrente, RepositorioBases, URL_REPOSITORIO
 
 RAIZ = Path(__file__).resolve().parent
 TRAT = RAIZ / "dados" / "tratados"
+LOG = logging.getLogger(__name__)
 PECAS = ["peca_A", "peca_B", "peca_C", "peca_D"]
 NOME_PECA = {p: "Peça " + p[-1] for p in PECAS}
 SENSOR_DA_PECA = {"peca_A": "sensor_c", "peca_B": "sensor_d", "peca_C": "sensor_b", "peca_D": "sensor_a"}
@@ -27,7 +32,7 @@ TABELAS = {
     "manutencao_corrigido": dict(titulo="Manutenção", data="data_hora", desc="Trocas preventivas e corretivas: técnico, duração, fornecedor, lote e custo."),
     "erros_corrigido": dict(titulo="Erros", data="data_hora", desc="Códigos de erro E1–E5 com severidade, firmware e tempo de reconhecimento."),
     "falhas_corrigido": dict(titulo="Falhas", data="data_hora", desc="Falhas de peça registradas às 06:00 (alvo do modelo)."),
-    "maquinas_corrigido": dict(titulo="Máquinas", data=None, desc="Cadastro das 92 máquinas: modelo, idade, fabricante, planta, linha e potência."),
+    "maquinas_corrigido": dict(titulo="Máquinas", data=None, desc="Cadastro das máquinas: modelo, idade, fabricante, planta, linha e potência."),
 }
 DESC_COL = {
     "id_maquina": "identificador da máquina (Mnnn)", "data_hora": "data e hora do registro", "dia_ref": "dia D (informação até D 05:00)",
@@ -46,10 +51,47 @@ DESC_COL = {
 
 
 # ------------------------------------------------------------------ carga (uma cópia por servidor, sem copiar a cada rerun)
-def pasta() -> Path:
-    """Pasta das bases tratadas desta sessão: a das bases enviadas pelo usuário, se houver; senão a do repositório."""
-    p = st.session_state.get("trat_dir")
-    return Path(p) if p and Path(p).exists() else TRAT
+@st.cache_resource(show_spinner=False)
+def _repositorio():
+    try:
+        token = st.secrets.get("bases_github", {}).get("token")
+    except StreamlitSecretNotFoundError:
+        return None
+    return RepositorioBases(token) if token else None
+
+
+@st.cache_resource(max_entries=2, show_spinner="Carregando as bases compartilhadas…")
+def _lote(versao: str, _repositorio: RepositorioBases):
+    pasta = TemporaryDirectory(prefix="mabiyama_tratados_")
+    try:
+        _repositorio.baixar(versao, Path(pasta.name))
+    except Exception:
+        pasta.cleanup()
+        raise
+    return pasta
+
+
+def _bases_compartilhadas():
+    try:
+        repositorio = _repositorio()
+        if repositorio is None:
+            return None, None, None
+        versao = repositorio.versao_atual()
+        return repositorio, versao, _lote(versao, repositorio)
+    except Exception:
+        LOG.exception("Falha ao carregar as bases do GitHub")
+        st.warning("Não foi possível consultar a versão do GitHub. Exibindo as bases desta instalação.")
+        return None, None, None
+
+
+def _pasta_em_uso(lote) -> Path:
+    pasta = Path(lote.name) if lote else TRAT
+    if st.session_state.get("bases_em_uso") != str(pasta):
+        for chave in list(st.session_state):
+            if chave.startswith(("dt_", "fm_", "ficha_per_")):
+                del st.session_state[chave]
+        st.session_state.bases_em_uso = str(pasta)
+    return pasta
 
 
 @st.cache_resource(max_entries=16, show_spinner="Carregando a base…")
@@ -61,12 +103,8 @@ def _tabela(p: str, nome: str) -> pd.DataFrame:
     return d
 
 
-def tabela(nome: str) -> pd.DataFrame:
-    return _tabela(str(pasta()), nome)
-
-
-def disponivel() -> bool:
-    return pasta().exists() and any(pasta().glob("*.parquet"))
+def disponivel(pasta: Path) -> bool:
+    return any(pasta.glob("*.parquet"))
 
 
 @st.cache_data(show_spinner=False)
@@ -217,7 +255,7 @@ def _ir(linha: int):
     st.session_state.dt_linha = int(linha)
 
 
-# ------------------------------------------------------------------ envio das bases brutas (roda o ETL e troca as tabelas da sessão)
+# ------------------------------------------------------------------ envio e publicação das bases brutas
 FORMATO_BRUTAS = """Mande os **6 arquivos CSV brutos**, do jeito que o cliente entrega (separados por vírgula, com cabeçalho).
 O nome do arquivo não importa: cada um é reconhecido pelas colunas. Colunas a mais são ignoradas.
 
@@ -230,26 +268,12 @@ Números com vírgula decimal, nomes com acento ou caixa diferente, sentinelas -
 como descrito no relatório de qualidade. A manutenção também pode vir com uma coluna por peça (`peca_A` … `peca_D` = 0/1)."""
 
 
-def _ao_terminar(destino, resumo):
-    st.session_state.trat_dir = str(destino)
-    st.session_state.trat_resumo = resumo
-    st.session_state.trat_msg = True
-    st.session_state.brutas_v = st.session_state.get("brutas_v", 0) + 1     # fecha o popover e limpa o envio
-    for k in [k for k in st.session_state if k.startswith(("dt_", "fm_"))]:
-        del st.session_state[k]
-
-
-def _voltar_bases():
-    for k in ("trat_dir", "trat_resumo", "trat_msg"):
-        st.session_state.pop(k, None)
-    st.session_state.brutas_v = st.session_state.get("brutas_v", 0) + 1
-    for k in [k for k in st.session_state if k.startswith(("dt_", "fm_"))]:
-        del st.session_state[k]
-
-
-def _popover_brutas():
-    st.markdown("**Atualizar com bases brutas.** O painel roda o mesmo tratamento da Etapa 2 (`ETL/integracao.py`) e troca as "
-                "tabelas desta aba e da ficha das máquinas pelas novas. Vale só para a sua sessão: o repositório não muda.")
+def _popover_brutas(repositorio, versao):
+    st.markdown("Envie as seis bases brutas para o tratamento. As tabelas tratadas e o relatório de qualidade "
+                "serão publicados no repositório público **Interface-MabiYama**.")
+    if repositorio is None:
+        st.info("A publicação requer um token do GitHub configurado nos Secrets e acesso ao repositório.")
+        return
     with st.expander("Formato dos arquivos"):
         st.markdown(FORMATO_BRUTAS)
     arqs = st.file_uploader("Bases brutas (6 arquivos .csv)", type="csv", accept_multiple_files=True,
@@ -270,80 +294,94 @@ def _popover_brutas():
         def aviso(etapa, i, n):
             nome = "Integração (máquina × dia)" if etapa == "integracao" else atualizar_bases.TITULOS[etapa]
             barra.progress(i / (n + 1), text=f"Tratando: {nome} ({i + 1} de {n})")
-        try:
-            destino, resumo = atualizar_bases.rodar(bases, aviso)
-        except Exception as e:
-            barra.empty()
-            msg = str(e)
-            st.error(msg.split("\n\n")[0])
-            if "\n\n" in msg:
-                with st.expander("Últimas linhas do tratamento"):
-                    st.code(msg.split("\n\n", 1)[1], language="text")
-            return
+        with TemporaryDirectory(prefix="mabiyama_envio_") as temporaria:
+            try:
+                destino, resumo = atualizar_bases.rodar(bases, Path(temporaria), aviso)
+            except Exception as erro:
+                barra.empty()
+                mensagem, _, detalhes = str(erro).partition("\n\n")
+                st.error(mensagem)
+                if detalhes:
+                    with st.expander("Últimas linhas do tratamento"):
+                        st.code(detalhes, language="text")
+                return
+
+            barra.progress(0.9, text="Publicando as bases tratadas no GitHub…")
+            try:
+                commit = repositorio.publicar(destino, versao)
+            except PublicacaoConcorrente as erro:
+                barra.empty()
+                st.warning(str(erro))
+                return
+            except BaseMuitoGrande as erro:
+                barra.empty()
+                st.error(str(erro))
+                return
+            except Exception:
+                LOG.exception("Falha ao publicar as bases tratadas no GitHub")
+                barra.empty()
+                st.error("Não foi possível confirmar a publicação. Recarregue a página para verificar a versão em uso.")
+                return
+
         barra.progress(1.0, text="Pronto")
-        _ao_terminar(destino, resumo)
+        st.session_state.trat_msg = (resumo, commit)
+        st.session_state.brutas_v = st.session_state.get("brutas_v", 0) + 1
         st.rerun()
 
 
-def _barra_origem():
-    r = st.session_state.get("trat_resumo") if pasta() != TRAT else None
+def _barra_origem(repositorio, versao, pasta):
     with st.container(key="dt_origem", horizontal=True, vertical_alignment="center"):
-        if r:
-            st.markdown(f'<div class="origem"><span class="pt on"></span><span><b>Bases enviadas por você</b> em {r["quando"]}, '
-                        'tratadas agora pelo ETL da equipe.</span></div>', unsafe_allow_html=True)
+        if versao:
+            st.markdown('<div class="origem"><span class="pt on"></span><span><b>Bases do GitHub</b></span></div>',
+                        unsafe_allow_html=True)
         else:
             st.markdown('<div class="origem"><span class="pt"></span><span><b>Bases do projeto</b>, tratadas pela equipe na Etapa 2.</span></div>',
                         unsafe_allow_html=True)
         with st.popover("Atualizar com bases brutas", icon=":material/upload_file:", key=f"brutas_pop_{st.session_state.get('brutas_v', 0)}"):
-            _popover_brutas()
-        if r:
-            rel = pasta() / "relatorio_qualidade.md"
-            if rel.exists():
-                st.download_button("Relatório de qualidade", rel.read_bytes(), file_name="relatorio_qualidade.md", mime="text/markdown",
-                                   key="dt_rel", icon=":material/download:")
-            st.button("Voltar às bases do projeto", key="dt_voltar", on_click=_voltar_bases, icon=":material/undo:")
-    if r and st.session_state.pop("trat_msg", False):
-        ref = {n: pq_linhas(TRAT / f"{n}.parquet") for n in r["linhas"]}
-        partes = [f"{TABELAS[n]['titulo']}: {v:,}".replace(",", ".") + (f" ({v - ref[n]:+,})".replace(",", ".") if ref.get(n) is not None and v != ref[n] else "")
-                  for n, v in r["linhas"].items() if n in TABELAS]
-        st.success("Bases tratadas e atualizadas. Linhas por tabela (entre parênteses, a diferença para as bases do projeto): "
-                   + " · ".join(partes) + (". Linhas rejeitadas (sem data ou máquina válida) ficaram de fora: "
-                                           + ", ".join(r["rejeitados"]) if r["rejeitados"] else "."))
-
-
-def pq_linhas(caminho: Path):
-    try:
-        import pyarrow.parquet as pq
-        return pq.ParquetFile(caminho).metadata.num_rows
-    except Exception:
-        return None
+            _popover_brutas(repositorio, versao)
+        rel = pasta / "relatorio_qualidade.md"
+        if rel.is_file():
+            st.download_button("Relatório de qualidade", rel.read_bytes(), file_name=rel.name, mime="text/markdown",
+                               key="dt_rel", icon=":material/download:")
+    publicacao = st.session_state.pop("trat_msg", None)
+    if publicacao:
+        resumo, commit = publicacao
+        partes = [f"{TABELAS[nome]['titulo']}: {linhas:,}".replace(",", ".") for nome, linhas in resumo["linhas"].items()]
+        mensagem = "Bases tratadas publicadas no GitHub. " + " · ".join(partes) + "."
+        if resumo["rejeitados"]:
+            mensagem += " Arquivos com linhas descartadas: " + ", ".join(resumo["rejeitados"]) + "."
+        st.success(mensagem)
+        st.link_button("Ver commit no GitHub", f"{URL_REPOSITORIO}/commit/{commit}")
 
 
 def pagina_dados():
     with st.container(key="pg"):
         _css()
-        st.markdown('<p class="pg-tit">Bases tratadas</p><p class="pg-sub">As tabelas completas que saíram do tratamento da Etapa 2 e alimentam '
-                    'o modelo. Filtre aqui; navegue até uma linha, coluna ou célula pela barra lateral.</p>', unsafe_allow_html=True)
-        _barra_origem()
-        if not disponivel():
+        st.markdown('<p class="pg-tit">Bases tratadas</p><p class="pg-sub">Explore as tabelas geradas pelo tratamento da Etapa 2. '
+                    'Use a barra lateral para navegar até uma linha, coluna ou célula.</p>', unsafe_allow_html=True)
+        repositorio, versao, lote = _bases_compartilhadas()
+        pasta = _pasta_em_uso(lote)
+        _barra_origem(repositorio, versao, pasta)
+        if not disponivel(pasta):
             _sem_dados()
             return
-        nomes = [n for n in TABELAS if (pasta() / f"{n}.parquet").exists()]
+        nomes = [n for n in TABELAS if (pasta / f"{n}.parquet").exists()]
         nome = st.segmented_control("Tabela", nomes, format_func=lambda n: TABELAS[n]["titulo"], default=nomes[0], key="dt_tab",
                                     label_visibility="collapsed") or nomes[0]
-        d = tabela(nome)
+        d = _tabela(str(pasta), nome)
         cfg = TABELAS[nome]
         st.caption(cfg["desc"])
 
         c1, c2, c3 = st.columns([1.2, 1.2, 1.6])
         maqs = sorted(d["id_maquina"].dropna().unique()) if "id_maquina" in d else []
         sel_maq = c1.multiselect("Máquinas", maqs, key=f"dt_maq_{nome}", placeholder="Todas") if maqs else []
-        periodo = None
-        if cfg["data"]:
+        periodo, faixa_datas = None, "–"
+        if cfg["data"] and d[cfg["data"]].notna().any():
             ini, fim = d[cfg["data"]].min().date(), d[cfg["data"]].max().date()
             periodo = c2.date_input("Período", (ini, fim), min_value=ini, max_value=fim, format="DD/MM/YYYY", key=f"dt_per_{nome}")
+            faixa_datas = f"{ini:%d/%m/%y} – {fim:%d/%m/%y}"
         cols = c3.multiselect("Colunas", list(d.columns), key=f"dt_cols_{nome}", placeholder="Todas as colunas")
-        chave = (str(pasta()), nome, tuple(sel_maq), tuple(periodo or ()) if periodo and len(periodo) == 2 else (), tuple(cols))
+        chave = (str(pasta), nome, tuple(sel_maq), tuple(periodo or ()) if periodo and len(periodo) == 2 else (), tuple(cols))
 
         # ---------------- navegação na barra lateral
         if st.session_state.get("dt_rec") != chave:            # recorte mudou: volta ao topo
@@ -391,7 +429,7 @@ def pagina_dados():
 
         _cartoes([("Linhas no recorte", f"{n:,}".replace(",", ".")), ("Linhas na base", f"{len(d):,}".replace(",", ".")),
                   ("Colunas", len(fo.columns)), ("Máquinas", fo["id_maquina"].nunique() if "id_maquina" in fo else "–"),
-                  ("Período", f"{d[cfg['data']].min():%d/%m/%y} – {d[cfg['data']].max():%d/%m/%y}" if cfg["data"] else "–")])
+                  ("Período", faixa_datas)])
 
         t1, t2, t3 = st.tabs(["Tabela", "Dicionário de colunas", "O que foi tratado"])
         with t1:
@@ -400,7 +438,7 @@ def pagina_dados():
             if col:
                 fixas = [c for c in ("id_maquina", cfg["data"]) if c and c in fo.columns and c != col]
                 ordem_cols = fixas + [col] + [c for c in fo.columns if c not in fixas and c != col]
-            navegando = linha > 1 or col or len(achados)
+            navegando = n > 0 and (linha > 1 or col or len(achados))
             cfg_idx = {"_index": st.column_config.NumberColumn("linha", format="%d", width="small")}
             if not navegando:
                 st.dataframe(fo.head(LIM), height=520, width="stretch", column_config=cfg_idx)
@@ -442,9 +480,9 @@ def pagina_dados():
                 else:
                     st.download_button("Baixar CSV do recorte", st.session_state.dt_csv, file_name=f"{nome}_recorte.csv", mime="text/csv")
         with t2:
-            st.dataframe(dicionario(nome, str(pasta())), hide_index=True, width="stretch", height=min(38 * (len(d.columns) + 1), 640))
+            st.dataframe(dicionario(nome, str(pasta)), hide_index=True, width="stretch", height=min(38 * (len(d.columns) + 1), 640))
         with t3:
-            txt = relatorio_secao(nome, str(pasta()))
+            txt = relatorio_secao(nome, str(pasta))
             st.markdown(txt if txt else "_Sem seção específica no relatório de qualidade para esta tabela._")
 
 
@@ -497,11 +535,13 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
     """previsao: tabela id/peca_A..D usada no painel; prob_dia: {(maquina, peca, 'dd/mm/aaaa'): prob%} das listas do painel."""
     with st.container(key="pg"):
         _css()
-        if not disponivel():
+        _, _, lote = _bases_compartilhadas()
+        pasta = _pasta_em_uso(lote)
+        if not disponivel(pasta):
             st.markdown('<p class="pg-tit">Ficha da máquina</p>', unsafe_allow_html=True)
             _sem_dados()
             return
-        maq, fal, man, err, tel = (tabela(n) for n in ("maquinas_corrigido", "falhas_corrigido", "manutencao_corrigido", "erros_corrigido",
+        maq, fal, man, err, tel = (_tabela(str(pasta), n) for n in ("maquinas_corrigido", "falhas_corrigido", "manutencao_corrigido", "erros_corrigido",
                                                        "telemetria_corrigido"))
         risco_max = {}
         for (mm_, _, _), pr in prob_dia.items():
@@ -623,12 +663,16 @@ def pagina_maquina(previsao: pd.DataFrame, prob_dia: dict, replay=None):
         # --- sensores
         st.markdown(f"### Sensores · {NOME_PECA[peca]} ({SENSOR_DA_PECA[peca]})")
         tm = tel[tel["id_maquina"] == m]
+        if tm.empty:
+            st.caption("Sem leituras de telemetria para esta máquina.")
+            return
         ini, fim = tm["data_hora"].min().date(), tm["data_hora"].max().date()
         ult = fm.loc[fm["peca"] == peca, "data_hora"].max()
+        pad = (max(ini, fim - pd.Timedelta(days=45)), fim)
         if pd.notna(ult):
-            pad = (max(ini, (ult - pd.Timedelta(days=21)).date()), min(fim, (ult + pd.Timedelta(days=7)).date()))
-        else:
-            pad = (max(ini, fim - pd.Timedelta(days=45)), fim)
+            janela = (max(ini, (ult - pd.Timedelta(days=21)).date()), min(fim, (ult + pd.Timedelta(days=7)).date()))
+            if janela[0] <= janela[1]:
+                pad = janela
         s1, _ = st.columns([1.3, 2])
         per = s1.date_input("Período", pad, min_value=ini, max_value=fim, format="DD/MM/YYYY", key=f"ficha_per_{m}_{peca}",
                             help="Por padrão, as 4 semanas em volta da última falha desta peça. Peça e resolução ficam na barra lateral.")

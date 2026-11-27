@@ -1,16 +1,8 @@
-"""Recebe as bases brutas do cliente, roda o ETL da equipe (ETL/integracao.py) e prepara as tabelas da aba "Dados tratados".
-
-Fluxo: arquivos enviados -> identificados pelo cabeçalho -> pasta temporária da sessão (dados/extraídos) ->
-ETL completo num processo separado (libera a memória ao terminar) -> CSVs tratados -> Parquet (o mesmo formato
-de dados/tratados). Nada é gravado no repositório: vale para a sessão de quem enviou.
-"""
+"""Identifica as bases brutas enviadas e roda o ETL em uma pasta de trabalho temporária."""
 import io
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
 
 import pandas as pd
@@ -18,7 +10,6 @@ import pyarrow.parquet as pq
 
 RAIZ = Path(__file__).resolve().parent
 ETL = RAIZ / "ETL" / "integracao.py"
-PASTA_SESSOES = Path(tempfile.gettempdir()) / "mabiyama_bases"
 
 # Colunas mínimas de cada base bruta (pode haver colunas a mais).
 COLUNAS = {
@@ -41,8 +32,13 @@ ETAPAS = ["maquinas", "falhas", "manutencao", "erros", "operacao", "telemetria",
 
 
 def _cabecalho(dados: bytes) -> list[str]:
-    linha = dados[:4096].decode("utf-8-sig", errors="replace").splitlines()[0] if dados else ""
+    linhas = dados[:4096].decode("utf-8-sig", errors="replace").splitlines()
+    linha = linhas[0] if linhas else ""
     return [c.strip().strip('"').lower() for c in linha.split(",")]
+
+
+def _tem_manutencao_por_colunas(cab: set[str]) -> bool:
+    return "peca" not in cab and {"data_hora", "id_maquina", "tecnico", "lote_peca", *(p.lower() for p in PECAS)} <= cab
 
 
 def _manutencao_por_colunas(dados: bytes) -> bytes:
@@ -63,9 +59,8 @@ def identificar(arquivos: list[tuple[str, bytes]]) -> tuple[dict, list[str]]:
     achados, problemas = {}, []
     for nome, dados in arquivos:
         cab = set(_cabecalho(dados))
-        if {"data_hora", "id_maquina", "tecnico", "lote_peca"} <= cab and "peca" not in cab and {p.lower() for p in PECAS} <= cab:
-            dados = _manutencao_por_colunas(dados)
-            cab = set(_cabecalho(dados))
+        if _tem_manutencao_por_colunas(cab):
+            cab.add("peca")
         casam = [b for b, cols in COLUNAS.items() if set(cols) <= cab]
         if not casam:
             parecidas = max(COLUNAS, key=lambda b: len(set(COLUNAS[b]) & cab))
@@ -84,27 +79,19 @@ def identificar(arquivos: list[tuple[str, bytes]]) -> tuple[dict, list[str]]:
     return achados, problemas
 
 
-def nova_pasta() -> Path:
-    PASTA_SESSOES.mkdir(parents=True, exist_ok=True)
-    # apaga envios com mais de 1 dia (o servidor guarda em /tmp)
-    for p in PASTA_SESSOES.iterdir():
-        if p.is_dir() and time.time() - p.stat().st_mtime > 86400:
-            shutil.rmtree(p, ignore_errors=True)
-    return Path(tempfile.mkdtemp(prefix="envio_", dir=PASTA_SESSOES))
-
-
-def rodar(bases: dict, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
+def rodar(bases: dict, pasta: Path, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
     """Grava as bases, roda o ETL e converte para Parquet. Retorna (pasta com os .parquet, resumo).
 
     aviso(etapa, i, n) é chamado a cada etapa do ETL, para a barra de progresso."""
-    pasta = nova_pasta()
     entrada = pasta / "dados" / "extraídos"
     entrada.mkdir(parents=True)
     for b, dados in bases.items():
+        if b == "manutencao" and _tem_manutencao_por_colunas(set(_cabecalho(dados))):
+            dados = _manutencao_por_colunas(dados)
         (entrada / f"{b}.csv").write_bytes(dados)
 
     log = []
-    proc = subprocess.Popen([sys.executable, "-u", str(ETL), "--dados", str(pasta / "dados")], cwd=str(RAIZ),
+    proc = subprocess.Popen([sys.executable, "-X", "utf8", "-u", str(ETL), "--dados", str(pasta / "dados")], cwd=str(RAIZ),
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
     for linha in proc.stdout:
         log.append(linha.rstrip())
@@ -123,5 +110,4 @@ def rodar(bases: dict, aviso=lambda etapa, i, n: None) -> tuple[Path, dict]:
     resumo = {"quando": pd.Timestamp.now(tz="America/Sao_Paulo").strftime("%d/%m/%Y %H:%M"),
               "linhas": {p.stem: pq.ParquetFile(p).metadata.num_rows for p in sorted(destino.glob("*.parquet"))},
               "rejeitados": sorted(p.name for p in (tratados / "_rejeitados").glob("*.csv")) if (tratados / "_rejeitados").exists() else []}
-    shutil.rmtree(entrada, ignore_errors=True)
     return destino, resumo
