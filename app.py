@@ -259,7 +259,8 @@ def tela_login():
         flex-wrap: wrap; align-items: flex-start !important; }}
       .st-key-entrada_esq {{ flex: 1 1 26rem; gap: 1.25rem !important; color: #eaf2ff; }}
       .st-key-entrada_esq [data-testid="stImage"] img {{ width: 330px !important; max-width: 100%; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
-      .logo-mare {{ width: 360px; max-width: 100%; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
+      .st-key-logo_mare {{ width: 380px; max-width: 100%; margin: -2.5rem 0 -.5rem; filter: drop-shadow(0 10px 24px rgb(0 0 0 / .35)); }}
+      .st-key-logo_mare iframe {{ background: transparent; }}
       .mare-h1 {{ margin: .5rem 0 0 !important; font-size: 2.75rem !important; line-height: 1.1 !important; font-weight: 800; color: #fff; max-width: 36rem; }}
       .mare-p {{ margin: 0; font-size: 1.05rem !important; line-height: 1.55; color: #bcd3f5; max-width: 33rem; }}
       .mare-chips {{ display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .4rem; }}
@@ -283,7 +284,8 @@ def tela_login():
     resumo = _resumo_login()
     with st.container(key="entrada", horizontal=True):
         with st.container(key="entrada_esq"):
-            st.markdown('<div class="logo-mare">' + logo_animado.html("escuro", "lgl") + "</div>", unsafe_allow_html=True)
+            with st.container(key="logo_mare"):
+                components.html(logo_animado.html("escuro"), height=logo_animado.altura(380), scrolling=False)
             chips = ""
             if resumo:
                 ex, alto, jan = resumo
@@ -355,6 +357,9 @@ def cabecalho_painel(aba):
         height: 2.25rem; padding: 0 1rem !important; box-shadow: 0 1px 3px rgb(0 0 0 / .1) !important; }
       .st-key-envio button:hover { background: color-mix(in oklab, var(--card) 90%, transparent) !important; }
       .st-key-envio button [data-testid="stIconMaterial"] { display: none; }
+      [data-testid="stPopoverBody"]:has(.st-key-envio_arq) { width: min(600px, 94vw) !important; max-width: min(600px, 94vw) !important; }
+      [data-testid="stPopoverBody"]:has(.st-key-envio_arq) table { font-size: .82rem; }
+      [data-testid="stPopoverBody"]:has(.st-key-envio_arq) li, [data-testid="stPopoverBody"]:has(.st-key-envio_arq) p { font-size: .85rem; }
     </style>""", unsafe_allow_html=True)
     st.markdown(f"""<style>.stApp .st-key-abas .st-key-aba_{aba} button {{ background: var(--tab-ativa, var(--card)) !important;
         color: var(--tab-ativa-txt, var(--brand-deep)) !important; border-color: transparent !important; box-shadow: 0 6px 16px -8px rgb(0 0 0 / .45) !important; }}
@@ -371,23 +376,84 @@ def cabecalho_painel(aba):
                         unsafe_allow_html=True)
             with st.container(key="envio"):
                 with st.popover("Enviar dados do dia"):
-                    st.markdown("**Nova previsão** no formato da submissão (id, peca_A, peca_B, peca_C, peca_D).")
-                    arq = st.file_uploader("Arquivo CSV", type="csv", label_visibility="collapsed")
-                    if arq is not None:
-                        try:
-                            dados_painel(arq.getvalue())
-                            st.session_state.previsao = arq.getvalue()
-                            st.success(f"Previsão carregada: {arq.name}")
-                        except Exception as e:  # formato inválido
-                            st.error(f"Não consegui ler o arquivo: {e}")
-                    if st.session_state.get("previsao") and st.button("Voltar à previsão padrão"):
-                        st.session_state.previsao = None
-                        st.rerun()
+                    popover_envio()
         with st.container(key="abas", horizontal=True):
             for k, rotulo in [(k, v) for k, v in ABAS.items() if k != "perfil"] + [("perfil", "Perfil")]:
                 if st.button(rotulo, key=f"aba_{k}"):
                     st.session_state.aba = k
                     st.rerun()
+
+
+ENVIO_AJUDA = """**Formato do arquivo**: CSV separado por vírgula, com cabeçalho e estas 5 colunas, nesta grafia:
+
+| coluna | o que vai nela |
+|---|---|
+| `id` | máquina e dia de referência: `Mxxx_AAAA-MM-DD` (ex.: `M010_2023-12-30`) |
+| `peca_A` … `peca_D` | escore de risco de cada peça falhar **até as 06:00 do dia seguinte** ao do `id` |
+
+- **Uma linha por máquina por dia.** Pode ser um dia só ou vários; o arquivo padrão tem as 92 máquinas × 92 dias
+  (30/09 a 30/12/2023) = 8.464 linhas. Máquinas de `M001` a `M092`.
+- **Escores**: números com ponto decimal (de 0 a 1, como na submissão do Kaggle). Vale a **ordem**: o painel ordena os escores de
+  cada peça e converte a posição em probabilidade pela calibração da validação temporal. O **menor valor de cada coluna** conta
+  como "fora da janela de risco" (probabilidade 0), então use um piso (ex.: `0.00001`) para as peças sem risco.
+- O que muda: alerta das 5 máquinas, fila de prioridades, tanques, exportação, risco na aba Máquinas e o top 5 do Floco.
+  Métricas de validação, replay e simulador continuam os da validação temporal.
+- Vale **só nesta sessão** (nada é gravado no repositório). "Voltar à previsão padrão" desfaz.
+"""
+ENVIO_EXEMPLO = """id,peca_A,peca_B,peca_C,peca_D
+M001_2023-12-30,0.00001,0.00001,0.00001,0.00001
+M010_2023-12-30,0.00001,0.00001,0.97,0.00001
+M067_2023-12-30,0.00001,0.80,0.00001,0.00001"""
+
+
+def validar_envio(df: pd.DataFrame) -> list[str]:
+    """Problemas de formato, em português, antes de montar o painel."""
+    erros = []
+    falta = [c for c in ["id", "peca_A", "peca_B", "peca_C", "peca_D"] if c not in df.columns]
+    if falta:
+        erros.append(f"faltam as colunas {', '.join(falta)} (cabeçalho lido: {', '.join(map(str, df.columns[:8]))})")
+        return erros
+    ruim = ~df["id"].astype(str).str.fullmatch(r"M\d{3}_\d{4}-\d{2}-\d{2}")
+    if ruim.any():
+        erros.append(f"{int(ruim.sum())} linha(s) com `id` fora do formato Mxxx_AAAA-MM-DD (ex.: {df.loc[ruim, 'id'].astype(str).iloc[0]!r})")
+    for c in ["peca_A", "peca_B", "peca_C", "peca_D"]:
+        v = pd.to_numeric(df[c], errors="coerce")
+        if v.isna().any():
+            erros.append(f"{int(v.isna().sum())} valor(es) não numérico(s) em `{c}` (use ponto como separador decimal)")
+    if not erros and df["id"].duplicated().any():
+        erros.append(f"{int(df['id'].duplicated().sum())} `id` repetido(s)")
+    return erros
+
+
+def popover_envio():
+    st.markdown("**Enviar uma nova previsão** no formato da submissão do Kaggle.")
+    st.markdown(ENVIO_AJUDA)
+    st.caption("Exemplo (3 linhas):")
+    st.code(ENVIO_EXEMPLO, language="text")
+    st.download_button("Baixar modelo (previsão atual, 8.464 linhas)", (DADOS / "previsao.csv").read_bytes(), file_name="modelo_previsao.csv",
+                       mime="text/csv", key="envio_modelo")
+    arq = st.file_uploader("Arquivo CSV", type="csv", key="envio_arq")
+    if arq is not None:
+        try:
+            df = pd.read_csv(io.BytesIO(arq.getvalue()))
+        except Exception as e:
+            st.error(f"Não consegui ler o CSV: {e}")
+            return
+        erros = validar_envio(df)
+        if erros:
+            st.error("O arquivo não está no formato esperado:\n\n- " + "\n- ".join(erros))
+            return
+        try:
+            dados_painel(arq.getvalue())
+            st.session_state.previsao = arq.getvalue()
+            dias = df["id"].str[5:]
+            st.success(f"Previsão carregada: {arq.name} · {len(df):,} linhas · {df['id'].str[:4].nunique()} máquinas · "
+                       f"{dias.nunique()} dia(s) ({dias.min()} a {dias.max()}).".replace(",", "."))
+        except Exception as e:  # formato válido mas sem dados utilizáveis
+            st.error(f"Não consegui montar o painel com esse arquivo: {e}")
+    if st.session_state.get("previsao") and st.button("Voltar à previsão padrão", key="envio_voltar"):
+        st.session_state.previsao = None
+        st.rerun()
 
 
 def conteudo_painel(aba, filtros):

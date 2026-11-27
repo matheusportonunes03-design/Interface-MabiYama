@@ -198,8 +198,14 @@ A aba Perfil tem o mesmo painel de personalização do botão "Personalizar", em
 no marcador `.mby-perso-inline`). "Salvar" grava no navegador; "Desfazer" volta ao último salvo.
 
 ## Logo animada (`logo_animado.py`)
-Na tela de entrada e no topo da barra lateral: a água entra ondulando, a engrenagem cai do céu girando, quica e respinga, a bomba
-sobe de dentro da água (com respingos e as gotas saltando), o nome aparece num corte da esquerda para a direita e o slogan sobe;
-depois a engrenagem gira devagar, a água balança e a bomba boia. A engrenagem é vetorial (para girar inteira); as outras partes
-são recortes da logo em alta resolução em `static/logo/` (versões clara e escura), servidos pelo Streamlit com
-`enableStaticServing = true` (`.streamlit/config.toml`). Com `prefers-reduced-motion`, a logo aparece parada.
+Na tela de entrada e no topo da barra lateral. A logo foi **recriada em vetor**: a engrenagem é paramétrica (14 dentes, para girar
+inteira); "MaBiYama" e o slogan são contornos da fonte Exo 2 (Black Itálico e SemiBold Itálico, a mais próxima do desenho
+original); a bomba, o crescente e as gotas são vetores suaves em quatro tons com gradientes; a água são 4 faixas de curvas
+recalculadas a cada quadro. Geometria em `frontend/marca/logo_vetor.json`; animação em `frontend/logo_anim.js`, com física
+simples a 60 quadros por segundo:
+- a água entra desenhando as faixas e não para de ondular (todas seguem a mesma onda, então as folgas brancas se mantêm);
+- a engrenagem cai do céu com gravidade, quica duas vezes, respinga e passa a girar devagar;
+- a bomba sobe de dentro da água numa mola amortecida, com respingos, ondas circulares e as gotas saltando; depois boia;
+- um brilho atravessa a bomba (e repete a cada ~7 s); o nome entra num corte da esquerda para a direita e o slogan sobe.
+Roda num `components.html` com fundo transparente (versão clara ou escura conforme o tema). Com `prefers-reduced-motion`, a logo
+aparece parada.

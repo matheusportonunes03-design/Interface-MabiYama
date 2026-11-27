@@ -1,151 +1,128 @@
-"""Logo da MaBiYama animada (SVG + CSS, sem JavaScript).
+"""Logo da MaBiYama recriada em vetor e animada (página para components.html).
 
-Roteiro (~3,2 s): a água entra ondulando; a engrenagem cai do céu girando, quica e respinga ao tocar a água; a bomba sobe de
-dentro da água (com respingos e as gotas saltando à direita); o nome aparece num corte da esquerda para a direita e o slogan
-sobe. Depois fica em repouso animado: a engrenagem gira devagar, a água balança e a bomba boia.
+Tudo é vetor: a engrenagem é paramétrica (14 dentes, para girar inteira); o nome e o slogan são contornos da fonte Exo 2
+(Black Itálico e SemiBold Itálico), que bate com o desenho original; a bomba, o crescente e as gotas são vetores suaves em
+quatro tons com gradientes; a água são faixas de curvas que o script recalcula a cada quadro para ondular.
+Geometria em frontend/marca/logo_vetor.json; animação em frontend/logo_anim.js (física simples a 60 qps).
 
-A engrenagem é desenhada em vetor (14 dentes, ajustada à arte original) para poder girar inteira; as outras partes são
-recortes da logo original (versões clara e escura, em alta resolução) servidos de static/logo/ (enableStaticServing),
-baixados uma vez por navegador. caixas.json guarda onde cada recorte fica na arte; superficie.json, a linha da água.
+Roteiro (~3,5 s): a água entra desenhando as faixas; a engrenagem cai do céu com gravidade, quica e respinga; a bomba sobe de
+dentro da água numa mola amortecida, com respingos e as gotas saltando; um brilho atravessa a bomba; o nome entra num corte
+da esquerda para a direita e o slogan sobe. Depois a engrenagem gira devagar, a água ondula e a bomba boia.
 """
 import json
 import math
 from functools import lru_cache
 from pathlib import Path
 
-PASTA = Path(__file__).resolve().parent / "static" / "logo"
-W, H = 1294, 758
-CX, CY = 497.5, 270.0                      # centro da engrenagem na arte original
+FRONT = Path(__file__).resolve().parent / "frontend"
+CX, CY = 497.5, 270.0
 R_PONTA, R_BASE, R_FURO, DENTES, FASE = 270, 240, 199, 14, -174
+VB = (0, -150, 1294, 908)          # espaço acima da arte para a engrenagem cair
+
+PALETAS = {
+    "claro": dict(eng=("#fcb83f", "#f09d1e", "#dc8412"), cres="#0b2a5e", base=("#0f3270", "#081d47"), mid=("#2a70cc", "#1a4f9f"),
+                  light=("#64aef0", "#3f89d8"), white=("#ffffff", "#d3e8ff"), gota=("#3cb0ee", "#1482d0"),
+                  a=("#0a58a3", "#0c69b9"), b=("#0b5fae", "#1384d2", "#20a0e2"), c=("#1489d4", "#2cabea"), fio=("#1a86d2", "#2aa6e6"),
+                  nome=("#5b1d7e", "#3c1056"), slogan="#3b2d4f", linha="#e59c14"),
+    "escuro": dict(eng=("#ffc14f", "#f5a52a", "#e38c18"), cres="#3b78e0", base=("#1d4ea6", "#123477"), mid=("#3a86e8", "#2566c4"),
+                   light=("#7cc0ff", "#55a2f0"), white=("#ffffff", "#e3f1ff"), gota=("#5cc4f7", "#2898e3"),
+                   a=("#1670c8", "#1a7fd6"), b=("#1678d0", "#2697e6", "#43b6f3"), c=("#2aa1ea", "#55c3f6"), fio=("#2f9ce6", "#4cbaf3"),
+                   nome=("#dba6f7", "#b87de9"), slogan="#d3c0f0", linha="#f2a93a"),
+}
 
 
 def _engrenagem() -> str:
-    """Contorno dos dentes + furo central (evenodd)."""
     passo = 360 / DENTES
     pts = []
     for i in range(DENTES):
         c = FASE + i * passo
-        for ang, r in ((c - passo / 2 + 1.2, R_BASE), (c - 8.2, R_BASE), (c - 5.6, R_PONTA), (c + 5.6, R_PONTA), (c + 8.2, R_BASE)):
+        for ang, r in ((c - passo / 2 + 1.2, R_BASE), (c - 8.4, R_BASE), (c - 6.2, R_PONTA - 6), (c - 5.0, R_PONTA), (c + 5.0, R_PONTA),
+                       (c + 6.2, R_PONTA - 6), (c + 8.4, R_BASE)):
             a = math.radians(ang)
             pts.append(f"{CX + r * math.cos(a):.1f},{CY + r * math.sin(a):.1f}")
-    furo = (f"M{CX + R_FURO},{CY} a{R_FURO},{R_FURO} 0 1,0 {-2 * R_FURO},0 a{R_FURO},{R_FURO} 0 1,0 {2 * R_FURO},0 Z")
+    furo = f"M{CX + R_FURO},{CY} a{R_FURO},{R_FURO} 0 1,0 {-2 * R_FURO},0 a{R_FURO},{R_FURO} 0 1,0 {2 * R_FURO},0 Z"
     return "M" + " L".join(pts) + " Z " + furo
 
 
-@lru_cache(maxsize=1)
-def _meta():
-    caixas = json.loads((PASTA / "caixas.json").read_text())
-    sup = json.loads((PASTA / "superficie.json").read_text())
-    return caixas, sup
-
-
 def _setor() -> str:
-    """Setor da engrenagem que aparece na arte original (da esquerda-baixo, pelo topo, até perto da alça da bomba)."""
+    """Setor da engrenagem visível na arte original (da esquerda-baixo, pelo topo, até perto da alça da bomba)."""
     pts = [f"{CX},{CY}"]
-    for ang in range(-58, -196, -4):
+    for ang in range(-63, -196, -4):
         a = math.radians(ang)
-        pts.append(f"{CX + 420 * math.cos(a):.0f},{CY + 420 * math.sin(a):.0f}")
+        pts.append(f"{CX + 430 * math.cos(a):.0f},{CY + 430 * math.sin(a):.0f}")
     return " ".join(pts)
 
 
-def _clip_superficie(folga: float) -> str:
-    """Polígono de tudo o que fica acima da superfície da água (menos uma folga)."""
-    _, sup = _meta()
-    pts = [f"{x},{min(y - folga, H)}" for x, y in sup] + [f"{W},{min(sup[-1][1] - folga, H)}"]
-    return f"0,-1200 {W},-1200 " + " ".join(reversed(pts))
+@lru_cache(maxsize=2)
+def _geo(versao: int) -> dict:
+    return json.loads((FRONT / "marca" / "logo_vetor.json").read_text(encoding="utf-8"))
 
 
-CSS = """<style>
-.lga{display:block;width:100%;height:auto;overflow:visible}
-.lga *{transform-box:view-box}
-.lga .eng-cai{transform-origin:497.5px 270px;animation:lgaCai 1.3s cubic-bezier(.55,0,1,.45) .25s both}
-.lga .eng-gira{transform-origin:497.5px 270px;animation:lgaGira 18s linear 1.55s infinite}
-.lga .bomba-sobe{transform-origin:669px 230px;animation:lgaSobe 1.15s cubic-bezier(.2,.75,.25,1) 1.3s both}
-.lga .eng-tudo{animation:lgaSome .35s ease-out 2.05s both}
-.lga .bomba-boia{animation:lgaBoia 4.2s ease-in-out 2.6s infinite}
-.lga .ag-in{animation:lgaAguaIn 1s cubic-bezier(.3,.7,.2,1) both}
-.lga .ag-in.b{animation-delay:.08s}.lga .ag-in.c{animation-delay:.18s}
-.lga .ag-a{animation:lgaBal 4.6s ease-in-out 1s infinite}
-.lga .ag-b{animation:lgaBal 3.8s ease-in-out 1s infinite reverse}
-.lga .ag-c{animation:lgaBal2 4.2s ease-in-out 1.2s infinite}
-.lga .gotas{transform-origin:1175px 300px;animation:lgaGotas .75s cubic-bezier(.2,1.4,.4,1) 1.75s both}
-.lga .gotas image{animation:lgaGotasBoia 3s ease-in-out 2.6s infinite}
-.lga .nome{animation:lgaNome .85s cubic-bezier(.3,.7,.2,1) 2.2s both}
-.lga .slogan{animation:lgaSlogan .7s ease-out 2.75s both}
-.lga .sp{opacity:0;animation:lgaSp .8s cubic-bezier(.2,.7,.3,1) both}
-.lga .rp{opacity:0;fill:none;stroke-width:5;animation:lgaRp 1s ease-out both}
-@keyframes lgaCai{0%{transform:translateY(-1150px) rotate(-240deg);opacity:0}6%{opacity:1}
-  60%{transform:translateY(0) rotate(0);animation-timing-function:cubic-bezier(.2,.6,.4,1)}
-  73%{transform:translateY(-38px) rotate(10deg);animation-timing-function:cubic-bezier(.6,0,1,.6)}
-  85%{transform:translateY(0) rotate(0);animation-timing-function:ease-out}93%{transform:translateY(-9px)}100%{transform:none;opacity:1}}
-@keyframes lgaSome{to{opacity:0}}
-@keyframes lgaGira{to{transform:rotate(360deg)}}
-@keyframes lgaSobe{0%{transform:translateY(400px) rotate(-4deg)}62%{transform:translateY(-20px) rotate(1.2deg)}82%{transform:translateY(5px) rotate(-.4deg)}100%{transform:none}}
-@keyframes lgaBoia{0%,100%{transform:none}50%{transform:translateY(-5px) rotate(-.6deg)}}
-@keyframes lgaAguaIn{0%{transform:translateX(-90px) scaleY(.4);opacity:0;clip-path:inset(0 100% 0 0)}100%{transform:none;opacity:1;clip-path:inset(0 0 0 0)}}
-@keyframes lgaBal{0%,100%{transform:translateX(0)}50%{transform:translateX(9px) translateY(-2px)}}
-@keyframes lgaBal2{0%,100%{transform:translateX(0)}50%{transform:translateX(-8px) translateY(2px)}}
-@keyframes lgaGotas{0%{transform:translate(-120px,90px) scale(.2) rotate(-25deg);opacity:0}30%{opacity:1}100%{transform:none;opacity:1}}
-@keyframes lgaGotasBoia{0%,100%{transform:none}50%{transform:translate(4px,-6px)}}
-@keyframes lgaNome{0%{clip-path:inset(0 100% 0 0);transform:translateY(18px);opacity:.2}100%{clip-path:inset(0 0 0 0);transform:none;opacity:1}}
-@keyframes lgaSlogan{0%{transform:translateY(16px);opacity:0}100%{transform:none;opacity:1}}
-@keyframes lgaSp{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1)}}
-@keyframes lgaRp{0%{opacity:.9;transform:scale(.2)}100%{opacity:0;transform:scale(1.25)}}
-@media (prefers-reduced-motion:reduce){.lga *{animation:none!important}}
-</style>"""
+@lru_cache(maxsize=2)
+def _js(versao: int) -> str:
+    return (FRONT / "logo_anim.js").read_text(encoding="utf-8")
 
 
-def _respingos(x0: float, x1: float, y: float, t0: float, n: int, cor: str) -> str:
-    """Gotinhas que saltam da superfície (posições determinísticas para o HTML não mudar entre reruns)."""
-    out = []
-    for i in range(n):
-        f = (i + .5) / n
-        x = x0 + (x1 - x0) * f
-        dx = (f - .5) * 160 + (17 * i % 7 - 3) * 6
-        dy = -(70 + (37 * i % 9) * 11)
-        r = 7 + (i * 5 % 4) * 2.5
-        out.append(f'<circle class="sp" cx="{x:.0f}" cy="{y:.0f}" r="{r}" fill="{cor}" '
-                   f'style="--dx:{dx:.0f}px;--dy:{dy:.0f}px;animation-delay:{t0 + (i % 4) * .03:.2f}s;transform-origin:{x:.0f}px {y:.0f}px"/>')
-    return "".join(out)
+def _superficie(geo: dict, folga: float) -> str:
+    sup = geo["superficie"]
+    pts = [f"{x},{y - folga:.0f}" for x, y in sup]
+    return f"-50,-2000 1344,-2000 1344,{sup[-1][1] - folga:.0f} " + " ".join(reversed(pts)) + f" -50,{sup[0][1] - folga:.0f}"
 
 
-def html(variante: str = "claro", uid: str = "lg") -> str:
-    """SVG pronto para st.markdown(..., unsafe_allow_html=True). variante: 'claro' (fundo claro) ou 'escuro'."""
-    caixas, _ = _meta()
+def _grad(id_, cores, vertical=True) -> str:
+    x2, y2 = ("0", "1") if vertical else ("1", "0")
+    paradas = "".join(f'<stop offset="{i / (len(cores) - 1):.2f}" stop-color="{c}"/>' for i, c in enumerate(cores))
+    return f'<linearGradient id="{id_}" x1="0" y1="0" x2="{x2}" y2="{y2}">{paradas}</linearGradient>'
 
-    def img(nome, cls=""):
-        x0, y0, x1, y1 = caixas[nome]
-        return (f'<image class="{cls}" href="app/static/logo/{variante}_{nome}.webp" x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" '
-                f'preserveAspectRatio="none"/>')
 
-    cor_sp = "#bfe6ff" if variante == "escuro" else "#4aa8e6"
-    return CSS + f"""<svg class="lga" viewBox="0 -40 {W} {H + 40}" role="img" aria-label="MaBiYama · Bombas e Sistemas Hidráulicos">
-<defs>
-  <linearGradient id="{uid}-eng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbb53b"/><stop offset=".55" stop-color="#ef9c1d"/><stop offset="1" stop-color="#df8714"/></linearGradient>
-  <clipPath id="{uid}-cg"><polygon points="{_clip_superficie(13)}"/></clipPath>
-  <mask id="{uid}-ms" maskUnits="userSpaceOnUse" x="-200" y="-1400" width="1700" height="2300">
-    <polygon points="{_setor()}" fill="#fff"/><rect class="eng-tudo" x="-200" y="-1400" width="1700" height="2300" fill="#fff"/></mask>
-  <clipPath id="{uid}-cb"><polygon points="{_clip_superficie(4)}"/></clipPath>
-  <filter id="{uid}-onda" x="-4%" y="-25%" width="108%" height="150%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.011 0.045" numOctaves="1" seed="4" result="n">
-      <animate attributeName="baseFrequency" dur="7s" values="0.011 0.045;0.014 0.06;0.011 0.045" repeatCount="indefinite"/></feTurbulence>
-    <feDisplacementMap in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G">
-      <animate attributeName="scale" begin="0.9s" dur="1.2s" from="0" to="9" fill="freeze"/></feDisplacementMap>
-  </filter>
-</defs>
-<g clip-path="url(#{uid}-cg)"><g mask="url(#{uid}-ms)"><g class="eng-cai">
-  <g class="eng-gira"><path d="{_engrenagem()}" fill="url(#{uid}-eng)" fill-rule="evenodd"/></g>
-  {img("crescente")}
+def html(variante: str = "claro", esquema: str = "light") -> str:
+    """Página completa (fundo transparente) para st.components.v1.html. esquema: color-scheme da página que a embute
+    (se for diferente, o navegador pinta um fundo opaco atrás do iframe)."""
+    v = int((FRONT / "marca" / "logo_vetor.json").stat().st_mtime_ns + (FRONT / "logo_anim.js").stat().st_mtime_ns)
+    geo, js, P = _geo(v), _js(v), PALETAS["escuro" if variante == "escuro" else "claro"]
+    b = geo["bomba"]
+    (le, ld) = geo["linhas"][:2] if len(geo["linhas"]) >= 2 else ([7, 721, 132, 732], [1161, 721, 1286, 732])
+    defs = "".join([
+        _grad("gEng", P["eng"]), _grad("gBase", P["base"]), _grad("gMid", P["mid"]), _grad("gLight", P["light"]), _grad("gWhite", P["white"]),
+        _grad("gGota", P["gota"]), _grad("gA", P["a"], False), _grad("gB", P["b"], False), _grad("gC", P["c"], False), _grad("gFio", P["fio"], False),
+        _grad("gNome", P["nome"]),
+        '<linearGradient id="gBrilho" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/>'
+        '<stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>',
+        f'<clipPath id="clipEng"><polygon points="{_superficie(geo, 13)}"/></clipPath>',
+        f'<clipPath id="clipBomba"><polygon points="{_superficie(geo, 4)}"/></clipPath>',
+        f'<clipPath id="clipBrilho"><path d="{b["base"]}"/></clipPath>',
+        '<clipPath id="clipNome"><rect id="clip-nome-r" x="-10" y="470" width="0" height="215"/></clipPath>',
+        f'<mask id="mSetor" maskUnits="userSpaceOnUse" x="-300" y="-1600" width="1900" height="2600"><polygon points="{_setor()}" fill="#fff"/>'
+        '<rect class="tudo" x="-300" y="-1600" width="1900" height="2600" fill="#fff"/></mask>',
+    ])
+    svg = f"""<svg viewBox="{' '.join(map(str, VB))}" preserveAspectRatio="xMidYMax meet" role="img" aria-label="MaBiYama · Bombas e Sistemas Hidráulicos">
+<defs>{defs}</defs>
+<g clip-path="url(#clipEng)"><g mask="url(#mSetor)"><g id="eng" opacity="0">
+  <g id="eng-giro"><path d="{_engrenagem()}" fill="url(#gEng)" fill-rule="evenodd"/></g>
+  <path d="{geo['crescente']}" fill="{P['cres']}" fill-rule="evenodd"/>
 </g></g></g>
-<g clip-path="url(#{uid}-cb)"><g class="bomba-sobe"><g class="bomba-boia">{img("bomba")}</g></g></g>
-<g filter="url(#{uid}-onda)">
-  <g class="ag-in a">{img("agua_a", "ag-a")}</g><g class="ag-in b">{img("agua_b", "ag-b")}</g><g class="ag-in c">{img("agua_c", "ag-c")}</g>
-</g>
-<ellipse class="rp" cx="300" cy="338" rx="120" ry="22" stroke="{cor_sp}" style="animation-delay:1.03s;transform-origin:300px 338px"/>
-<ellipse class="rp" cx="680" cy="400" rx="260" ry="34" stroke="{cor_sp}" style="animation-delay:1.65s;transform-origin:680px 400px"/>
-{_respingos(220, 380, 336, 1.02, 8, cor_sp)}
-{_respingos(470, 900, 395, 1.62, 12, cor_sp)}
-<g class="gotas">{img("gotas")}</g>
-{img("nome", "nome")}
-{img("slogan", "slogan")}
+<g clip-path="url(#clipBomba)"><g id="bomba-mov" transform="translate(0,440)">
+  <path d="{b['base']}" fill="url(#gBase)" fill-rule="evenodd"/><path d="{b['mid']}" fill="url(#gMid)" fill-rule="evenodd"/>
+  <path d="{b['light']}" fill="url(#gLight)" fill-rule="evenodd"/><path d="{b['white']}" fill="url(#gWhite)" fill-rule="evenodd"/>
+  <g clip-path="url(#clipBrilho)"><rect id="brilho" x="380" y="-20" width="170" height="480" fill="url(#gBrilho)" opacity="0"/></g>
+</g></g>
+<path id="ag-a" fill="url(#gA)"/><path id="ag-b" fill="url(#gB)"/><path id="ag-fio" fill="url(#gFio)"/><path id="ag-c" fill="url(#gC)"/>
+<g id="gotas" opacity="0"><path d="{geo['gotas']}" fill="url(#gGota)" fill-rule="evenodd"/></g>
+<g id="respingos"></g>
+<g clip-path="url(#clipNome)"><g id="nome"><path d="{geo['nome']['d']}" transform="{geo['nome']['t']}" fill="url(#gNome)"/></g></g>
+<g id="slogan" opacity="0"><path d="{geo['slogan']['d']}" transform="{geo['slogan']['t']}" fill="{P['slogan']}"/></g>
+<rect id="lin-e" x="{le[0]}" y="{le[1]}" width="{le[2] - le[0]}" height="{le[3] - le[1] + 1}" rx="5.5" fill="{P['linha']}" transform="scale(0 1)"/>
+<rect id="lin-d" x="{ld[0]}" y="{ld[1]}" width="{ld[2] - ld[0]}" height="{ld[3] - ld[1] + 1}" rx="5.5" fill="{P['linha']}" transform="scale(0 1)"/>
 </svg>"""
+    return f"""<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{{margin:0;padding:0;background:transparent;overflow:hidden}}
+svg{{display:block;width:100%;height:100vh}}
+.tudo{{animation:some .35s ease-out 1.6s both}}@keyframes some{{to{{opacity:0}}}}
+@media (prefers-reduced-motion:reduce){{.tudo{{animation:none;opacity:0}}#bomba-mov{{transform:none}}#gotas,#slogan,#eng{{opacity:1}}#lin-e,#lin-d{{transform:none}}}}
+</style></head><body>{svg}
+<script>window.LOGO_GEO={json.dumps({"agua": geo["agua"]}, separators=(",", ":"))};</script><script>{js}</script></body></html>"""
+
+
+def altura(largura: int) -> int:
+    """Altura do componente para uma largura em px (mantém a proporção do viewBox)."""
+    return int(round(largura * VB[3] / VB[2]))

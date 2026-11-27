@@ -136,7 +136,8 @@ def css_tema():
 .st-key-marca [data-testid="stImage"], .st-key-marca [data-testid="stImageContainer"] {{ display: flex; justify-content: center; }}
 .st-key-marca img {{ max-width: 210px !important; width: 100% !important; margin: 0 auto; filter: drop-shadow(0 4px 10px rgb(0 40 120 / .12)); }}
 [data-testid="stElementContainer"]:has(.lb-ent) {{ display: none !important; }}
-.logo-lat {{ max-width: 210px; width: 100%; margin: 0 auto; filter: drop-shadow(0 4px 10px rgb(0 40 120 / .12)); }}
+.st-key-logo_lat {{ width: 212px; max-width: 100%; margin: -1.6rem auto -.4rem; filter: drop-shadow(0 4px 10px rgb(0 40 120 / .12)); }}
+.st-key-logo_lat iframe {{ background: transparent; }}
 [data-testid="stSidebar"] p.lb-user {{ font-size: .75rem !important; line-height: 1.1rem; }}
 .lb-user {{ display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .75rem; color: var(--muted-foreground);
   font-weight: 700; letter-spacing: .02em; margin: 0; }}
@@ -286,7 +287,7 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
 .stApp [data-testid="stCheckbox"] span, .stApp [data-testid="stToggle"] span {{ border-color: var(--input); }}
 .stApp code {{ background: var(--secondary); color: var(--brand-sky); }}
 .st-key-marca img {{ filter: drop-shadow(0 6px 16px rgb(0 0 0 / .45)); }}
-.logo-lat {{ filter: drop-shadow(0 6px 16px rgb(0 0 0 / .45)); }}
+.st-key-logo_lat {{ filter: drop-shadow(0 6px 16px rgb(0 0 0 / .45)); }}
 .stApp .stDownloadButton button, .stApp [data-testid="stBaseButton-primary"] {{ background: var(--brand-solid) !important; border-color: var(--brand-solid) !important; color: #fff !important; }}
 .stApp .stDownloadButton button:hover {{ background: var(--brand) !important; }}
 [data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{ background: color-mix(in oklab, var(--brand) 22%, var(--card)) !important;
@@ -307,7 +308,9 @@ section[data-testid="stSidebar"][aria-expanded="true"] {{ min-width: 19.5rem !im
 def marca_lateral(nome: str):
     with st.container(key="marca"):
         import logo_animado
-        st.markdown('<div class="logo-lat">' + logo_animado.html("escuro" if escuro() else "claro", "lgs") + "</div>", unsafe_allow_html=True)
+        import streamlit.components.v1 as components
+        with st.container(key="logo_lat"):
+            components.html(logo_animado.html("escuro" if escuro() else "claro", "dark" if escuro() else "light"), height=logo_animado.altura(212), scrolling=False)
         st.markdown(f'<p class="lb-user"><i></i>Manutenção preditiva · {nome}</p><div class="lb-onda"></div>', unsafe_allow_html=True)
 
 
