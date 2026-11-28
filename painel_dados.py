@@ -72,7 +72,9 @@ def lista_dia(g, maq):
 
 def dados_modelagem(pasta, sub=None):
     val = ler(pasta, "validacao.csv")
-    maq = ler(pasta, "maquinas_resumo.csv").set_index("id_maquina")
+    cadastro = Path(pasta) / "tratados" / "maquinas_corrigido.parquet"
+    maq = (pd.read_parquet(cadastro, columns=["id_maquina", "modelo", "idade"])
+           if cadastro.is_file() else ler(pasta, "maquinas_resumo.csv")).set_index("id_maquina")
     sub = ler(pasta, "previsao.csv") if sub is None else sub
     lg = previsao_longa(sub, val)
 

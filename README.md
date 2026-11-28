@@ -76,10 +76,11 @@ rotulado das bases novas e prevê para os dias disponíveis até o último corte
 O volume de dados e os recursos do executor determinam a duração. O fluxo também pode ser iniciado em
 **Actions → Atualizar previsão m07 → Run workflow**.
 
-Em **Enviar dados do dia**, **Baixar CSV atualizado do m07** fica disponível quando a previsão corresponde às bases atuais.
-O arquivo sai no formato `id,peca_A,peca_B,peca_C,peca_D`, com uma linha por máquina e dia previsto. A quantidade de linhas
-é determinada pelas bases. Envie esse CSV pelo campo do mesmo menu para aplicar a previsão na sessão. O manifesto publicado
-junto do CSV identifica a versão das bases que gerou a previsão. O treinamento requer histórico de falhas rotuladas.
+O painel verifica a previsão a cada 30 segundos enquanto a sessão está aberta e aplica automaticamente o m07 quando
+o manifesto corresponde às bases atuais. Durante o processamento, o painel exibe a última previsão publicada.
+Em **Enviar dados do dia**, **Baixar CSV atualizado do m07** permite exportar a previsão atual. O arquivo contém
+`id,peca_A,peca_B,peca_C,peca_D`, com uma linha por máquina e dia previsto. A quantidade de linhas depende das bases.
+O treinamento requer histórico de falhas rotuladas.
 
 #### Ativar a publicação no GitHub
 
@@ -231,11 +232,10 @@ Arquivos:
 
 
 ## Enviar dados do dia (botão no cabeçalho)
-Abre um campo para enviar um CSV no formato da submissão do Kaggle (`id,peca_A,peca_B,peca_C,peca_D`, com `id` = `Mxxx_AAAA-MM-DD`
-e as probabilidades de 0 a 1). O arquivo é lido por `painel_dados.montar` e passa a valer **só nesta sessão**: alerta das 5
-máquinas, fila de prioridades, tanques, filtros, exportação, risco da aba Máquinas e o top 5 que o Floco anuncia. Indicadores
-de validação (AUC-PR, recall, curvas, replay e simulador) continuam os da validação temporal. "Voltar à previsão padrão" desfaz.
-Nada é gravado no repositório: ao sair ou recarregar a página, volta a previsão padrão (`dados/previsao.csv`).
+O menu oferece o download do m07 e permite enviar um CSV de previsão para uso temporário na sessão.
+O CSV usa `id,peca_A,peca_B,peca_C,peca_D`, com `id` no formato `Mxxx_AAAA-MM-DD` e escores de 0 a 1.
+**Voltar à previsão automática** encerra a seleção manual. Uma nova previsão m07 também encerra essa seleção
+quando fica pronta.
 
 ## Animação de entrada das abas
 Ao abrir uma aba, os blocos surgem em cascata. Nas páginas em iframe (`frontend/entrada.js`): cada bloco sobe e aparece quando

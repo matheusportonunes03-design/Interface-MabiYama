@@ -324,6 +324,9 @@ def tela_login():
 def _versao_dados() -> str:
     """Muda quando o código ou os dados mudam: invalida o cache e recarrega painel_dados após um deploy."""
     arqs = [RAIZ / "painel_dados.py"] + sorted(DADOS.rglob("*.csv")) + sorted(DADOS.rglob("*.json"))
+    cadastro = DADOS / "tratados" / "maquinas_corrigido.parquet"
+    if cadastro.is_file():
+        arqs.append(cadastro)
     return hashlib.md5("|".join(f"{a.name}:{a.stat().st_mtime_ns}:{a.stat().st_size}" for a in arqs).encode()).hexdigest()
 
 
@@ -339,7 +342,52 @@ def dados_painel(previsao: bytes | None):
     return _dados_painel(previsao, _versao_dados())
 
 
-def cabecalho_painel(aba):
+def _consultar_m07():
+    try:
+        return paginas.previsao_atualizada(), False
+    except Exception:
+        return None, True
+
+
+def _assinatura_m07(previsao):
+    if previsao:
+        arquivo, manifesto = previsao
+        return manifesto["arvore_bases"], hashlib.sha256(arquivo).hexdigest()
+    return None
+
+
+@st.fragment(run_every=30)
+def _acompanhar_m07(assinatura):
+    previsao, _ = _consultar_m07()
+    nova = _assinatura_m07(previsao)
+    if nova and nova != assinatura:
+        st.rerun()
+
+
+def _limpar_envio_manual():
+    st.session_state.pop("previsao", None)
+    st.session_state.envio_v = st.session_state.get("envio_v", 0) + 1
+
+
+def _arquivo_previsao_padrao():
+    ultimo_m07 = DADOS / "previsao_m07.csv"
+    return ultimo_m07 if ultimo_m07.is_file() else DADOS / "previsao.csv"
+
+
+def _previsao_em_uso(m07, assinatura):
+    if assinatura and assinatura != st.session_state.get("m07_aplicado"):
+        _limpar_envio_manual()
+        st.session_state.pop("f_dia", None)
+        st.session_state.m07_aplicado = assinatura
+    manual = st.session_state.get("previsao")
+    if manual:
+        return manual, "arquivo enviado nesta sessão"
+    if m07:
+        return m07[0], "m07 das bases atuais"
+    return _arquivo_previsao_padrao().read_bytes(), "última previsão publicada"
+
+
+def cabecalho_painel(aba, previsao_m07, consulta_indisponivel):
     st.markdown("""<style>
       .st-key-cab { background-image: var(--gradient-header); color: var(--primary-foreground); }
       .st-key-cab_topo { max-width: 80rem; margin: 0 auto; padding: 1.75rem 1.5rem; display: flex !important; flex-direction: row !important;
@@ -376,7 +424,7 @@ def cabecalho_painel(aba):
                         unsafe_allow_html=True)
             with st.container(key="envio"):
                 with st.popover("Enviar dados do dia"):
-                    popover_envio()
+                    popover_envio(previsao_m07, consulta_indisponivel)
         with st.container(key="abas", horizontal=True):
             for k, rotulo in [(k, v) for k, v in ABAS.items() if k != "perfil"] + [("perfil", "Perfil")]:
                 if st.button(rotulo, key=f"aba_{k}"):
@@ -397,7 +445,8 @@ ENVIO_AJUDA = """**Formato do arquivo**: CSV separado por vírgula, com cabeçal
   representam peças fora da janela de risco.
 - O que muda: alerta das 5 máquinas, fila de prioridades, tanques, exportação, risco na aba Máquinas e o top 5 do Floco.
   Métricas de validação, replay e simulador continuam os da validação temporal.
-- Vale **só nesta sessão** (nada é gravado no repositório). "Voltar à previsão padrão" desfaz.
+- O **m07 atualizado** entra em uso automaticamente. Um CSV enviado manualmente é usado na sessão até você voltar
+  à previsão automática ou até o próximo m07 ficar pronto.
 """
 ENVIO_EXEMPLO = """id,peca_A,peca_B,peca_C,peca_D
 M001_2023-12-30,0.00001,0.00001,0.00001,0.00001
@@ -426,15 +475,12 @@ def validar_envio(df: pd.DataFrame) -> list[str]:
     return erros
 
 
-def popover_envio():
+def popover_envio(previsao_m07, consulta_indisponivel):
     st.markdown("**Enviar uma nova previsão** no formato da submissão do Kaggle.")
     st.markdown(ENVIO_AJUDA)
     st.caption("Exemplo (3 linhas):")
     st.code(ENVIO_EXEMPLO, language="text")
-    try:
-        previsao_m07 = paginas.previsao_atualizada()
-    except Exception:
-        previsao_m07 = None
+    if consulta_indisponivel:
         st.caption("A consulta da previsão atualizada está temporariamente indisponível.")
     if previsao_m07:
         csv_m07, manifesto = previsao_m07
@@ -442,17 +488,19 @@ def popover_envio():
                            mime="text/csv", key="envio_modelo")
         st.caption(f"{manifesto['linhas']} linhas · {manifesto['inicio']} a {manifesto['fim']}")
     else:
-        st.caption("O CSV atualizado aparece aqui quando o processamento das bases atuais terminar.")
+        st.caption("O painel aplica o m07 automaticamente quando a previsão das bases atuais estiver pronta.")
         st.link_button("Acompanhar geração do m07", f"{paginas.URL_REPOSITORIO}/actions/workflows/previsao-m07.yml")
         if st.button("Verificar previsão atualizada", key="envio_verificar"):
             paginas.previsao_atualizada.clear()
             st.rerun()
-        st.download_button("Baixar CSV da previsão padrão", (DADOS / "previsao.csv").read_bytes(),
-                           file_name="modelo_previsao.csv", mime="text/csv", key="envio_modelo")
-    arq = st.file_uploader("Arquivo CSV", type="csv", key="envio_arq")
+        arquivo = _arquivo_previsao_padrao()
+        st.download_button("Baixar última previsão publicada", arquivo.read_bytes(),
+                           file_name=arquivo.name, mime="text/csv", key="envio_modelo")
+    arq = st.file_uploader("Arquivo CSV", type="csv", key=f"envio_arq_{st.session_state.get('envio_v', 0)}")
     if arq is not None:
+        conteudo = arq.getvalue()
         try:
-            df = pd.read_csv(io.BytesIO(arq.getvalue()))
+            df = pd.read_csv(io.BytesIO(conteudo))
         except Exception as e:
             st.error(f"Não consegui ler o CSV: {e}")
             return
@@ -461,20 +509,22 @@ def popover_envio():
             st.error("O arquivo não está no formato esperado:\n\n- " + "\n- ".join(erros))
             return
         try:
-            dados_painel(arq.getvalue())
-            st.session_state.previsao = arq.getvalue()
+            if st.session_state.get("previsao") != conteudo:
+                dados_painel(conteudo)
+                st.session_state.previsao = conteudo
+                st.rerun()
             dias = df["id"].str[5:]
             st.success(f"Previsão carregada: {arq.name} · {len(df):,} linhas · {df['id'].str[:4].nunique()} máquinas · "
                        f"{dias.nunique()} dia(s) ({dias.min()} a {dias.max()}).".replace(",", "."))
         except Exception as e:  # formato válido mas sem dados utilizáveis
             st.error(f"Não consegui montar o painel com esse arquivo: {e}")
-    if st.session_state.get("previsao") and st.button("Voltar à previsão padrão", key="envio_voltar"):
-        st.session_state.previsao = None
+    if st.session_state.get("previsao") and st.button("Voltar à previsão automática", key="envio_voltar"):
+        _limpar_envio_manual()
         st.rerun()
 
 
-def conteudo_painel(aba, filtros):
-    d = dict(dados_painel(st.session_state.get("previsao")))
+def conteudo_painel(dados, aba, filtros):
+    d = dict(dados)
     if aba == "eda":
         d["graficos"] = graficos()
     pagina = f"""<!doctype html><html lang="pt-BR" class="{tema.classe_html()}"><head><meta charset="utf-8">
@@ -633,7 +683,7 @@ def filtrar_lista(lista, f):
             and e["prob"] >= f["riscoMin"] and (not b or b in e["machine"].upper())]
 
 
-def barra_lateral(d, aba):
+def barra_lateral(d, aba, fonte):
     """Navegação, filtros da previsão, exportação da lista do dia, temas da análise exploratória e dados do modelo."""
     u = st.session_state.usuario
     for k, v in FILTROS_PADRAO.items():
@@ -689,11 +739,10 @@ def barra_lateral(d, aba):
             f.update({"grupos": st.session_state.f_grupos, "expandir": st.session_state.f_expandir})
 
         k = d["kpi"]
-        fonte = "arquivo enviado nesta sessão" if st.session_state.get("previsao") else "melhor submissão do time"
         tema.secao("Sobre o modelo")
         st.markdown(f"""<div class="lb-sobre">
           Previsão em uso: <b>{fonte}</b><br>AUC-PR na validação: <b>{k["ap"]}</b><br>
-          Kaggle público: <b>{k["apKaggle"]}</b><br>Horizonte: <b>{len(dias)} dias</b> · {k["maquinas"]} máquinas</div>""",
+          Kaggle (referência histórica): <b>{k["apKaggle"]}</b><br>Horizonte: <b>{len(dias)} dias</b> · {k["maquinas"]} máquinas</div>""",
                     unsafe_allow_html=True)
     return f
 
@@ -803,26 +852,28 @@ def main():
     aba = st.session_state.get("aba", "model")
     entrada_da_aba(aba)
     animacao.capa()  # cobre a tela até a cena de boas-vindas abrir (só na 1ª vez / ao rever)
-    d = dados_painel(st.session_state.get("previsao"))
-    filtros = barra_lateral(d, aba)
+    m07, consulta_indisponivel = _consultar_m07()
+    assinatura = _assinatura_m07(m07)
+    previsao, fonte = _previsao_em_uso(m07, assinatura)
+    _acompanhar_m07(assinatura)
+    d = dados_painel(previsao)
+    filtros = barra_lateral(d, aba, fonte)
     if aba == "perfil":
         tela_perfil()
         tema.rodape_lateral()
         ajudantes(d, aba, filtros)
         return
-    cabecalho_painel(aba)
+    cabecalho_painel(aba, m07, consulta_indisponivel)
     if aba == "dados":
         paginas.pagina_dados()
     elif aba == "sim":
         pagina_simulador()
     elif aba == "maquinas":
-        prev = st.session_state.get("previsao")
-        sub = pd.read_csv(io.BytesIO(prev)) if prev else pd.read_csv(DADOS / "previsao.csv")
-        d = dados_painel(prev)
+        sub = pd.read_csv(io.BytesIO(previsao))
         prob = {(e["machine"], "peca_" + e["comp"][-1], dd["fimLongo"]): e["prob"] for dd in d["dias"] for e in dd.get("lista", [])}
         paginas.pagina_maquina(sub, prob, replay=replay_frota)
     else:
-        conteudo_painel(aba, filtros)
+        conteudo_painel(d, aba, filtros)
     tema.rodape_lateral()
     ajudantes(d, aba, filtros)
 
